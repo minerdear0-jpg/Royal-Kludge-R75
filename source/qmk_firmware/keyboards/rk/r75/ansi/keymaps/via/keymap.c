@@ -10,6 +10,7 @@
 #include "features/indicators.h"
 #include "features/rgb_keys.h"
 #include "features/socd_cleaner.h"
+#include "features/game_mode.h"
 
 void housekeeping_task_user(void) {
     // Note: We can decide what to do with the MAC Led in this function
@@ -36,6 +37,11 @@ socd_cleaner_t socd_v = {{KC_W, KC_S}, SOCD_CLEANER_LAST};
 socd_cleaner_t socd_h = {{KC_A, KC_D}, SOCD_CLEANER_LAST};
 
 // *************
+// * Game Mode *
+// *************
+static bool game_mode_pending = false;
+
+// *************
 // * Tap Dance *
 // *************
 enum tap_dance_keys {
@@ -51,6 +57,7 @@ enum custom_keycodes {
     SOCDON = SAFE_RANGE,
     SOCDOFF,
     SOCDTOG,
+    GAME_MODE_TOG,
 };
 
 // clang-format off
@@ -87,7 +94,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
         _______,  TD_KB_RST,  _______,  _______,  _______,  SOCDTOG,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,
         _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,         _______,  _______,
-        _______,  TD_KB_CLR,  _______,  _______,  _______,  _______,  NK_TOGG,  _______,  _______,  _______,  _______,  _______,           _______,
+        _______,  TD_KB_CLR,  _______,  _______,  _______,  _______,  NK_TOGG,  _______,  _______,  _______,  _______,  _______,           GAME_MODE_TOG,
         _______,  _______,  _______,                      _______,                                 _______,  _______,            _______,  _______,  _______
     ),
 
@@ -193,6 +200,23 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case SOCDTOG: // Toggle SOCD Cleaner.
             if (record->event.pressed) {
                 socd_cleaner_enabled = !socd_cleaner_enabled;
+            }
+            return false;
+        case GAME_MODE_TOG: // Toggle Game Mode (WSAD red backlight)
+            if (record->event.pressed) {
+                const bool enabled = game_mode_toggle();
+                // Visual feedback: flash WSAD when toggling
+                if (enabled) {
+                    indicator_enqueue(LED_W_INDEX, 200, 3, RGB_RED);
+                    indicator_enqueue(LED_S_INDEX, 200, 3, RGB_RED);
+                    indicator_enqueue(LED_A_INDEX, 200, 3, RGB_RED);
+                    indicator_enqueue(LED_D_INDEX, 200, 3, RGB_RED);
+                } else {
+                    indicator_enqueue(LED_W_INDEX, 150, 2, RGB_BLUE);
+                    indicator_enqueue(LED_S_INDEX, 150, 2, RGB_BLUE);
+                    indicator_enqueue(LED_A_INDEX, 150, 2, RGB_BLUE);
+                    indicator_enqueue(LED_D_INDEX, 150, 2, RGB_BLUE);
+                }
             }
             return false;
         default:

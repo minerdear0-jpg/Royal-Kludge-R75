@@ -6,6 +6,7 @@
 #include "indicators.h"
 #include "defines.h"
 #include "indicator_queue.h"
+#include "game_mode.h"
 
 // clang-format off
 
@@ -99,103 +100,68 @@ void highlight_fn_keys(uint8_t led_min, uint8_t led_max) {
 
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     uint8_t current_layer = get_highest_layer(layer_state);
+    
+    // Apply Game Mode lighting first (highest priority when active)
+    if (game_mode_is_active()) {
+        game_mode_apply_lighting(led_min, led_max);
+    }
+    
     if (current_layer == 0) {
         if (rgb_matrix_get_flags() == LED_FLAG_INDICATOR) {
             for (int i = led_min; i < led_max; i++) {
                 rgb_matrix_set_color(i, 0, 0, 0);
             }
-            // we could also do this, but using the min max
-            // updates a smaller subset at once
-            // rgb_matrix_set_color_all(0, 0, 0);
         }
     }
 
     if (IS_LAYER_ON(1) ||
-        // IS_LAYER_ON(_CTL_LYR) ||  //ignore the CTL layer since we want to see RGB effects on that layer
         IS_LAYER_ON(2) ||
         IS_LAYER_ON(4) ) {
-        // we are in a custom layer, clear all background colors
-        // this will make our custom colors stand out more
         for (int i = led_min; i <= led_max; i++) {
             RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
         }
     }
 
     if (IS_LAYER_ON(1)) {
-        // this layer has many functions, so just change the whole color
-        for (int i = led_min; i <= led_max; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
-        }
-
-        const uint8_t led_indexes[13] = {
-            20,19,18,17,16,15,14,13,12,11,10,9,8
-        };
-        for (int i = 0; i < 13; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(led_indexes[i], 0x00, 0x80, 0x80);
+        const uint8_t fn_leds[13] = {20,19,18,17,16,15,14,13,12,11,10,9,8};
+        for (uint8_t i = 0; i < 13; i++) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(fn_leds[i], 0x00, 0x80, 0x80);
         }        
         
-        const uint8_t led_indexesrgb[15] = {
-            41,40,39,38,37,36,
-            58,59,60,
-            67,66,
-            2,3,4,63
-        };
-        for (int i = 0; i < 15; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(led_indexesrgb[i], 0, 0, 255);
+        const uint8_t rgb_leds[15] = {41,40,39,38,37,36,58,59,60,67,66,2,3,4,63};
+        for (uint8_t i = 0; i < 15; i++) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(rgb_leds[i], 0, 0, 255);
         }
 
-        // no matter what, this layer also uses fn keys
-        // highlight_fn_keys(led_min, led_max);
-
-        // highlight right shift as moving to ctl layer
         RGB_MATRIX_INDICATOR_SET_COLOR(64, 0xFF, 0x00, 0x00);
     }
 
     if (IS_LAYER_ON(2)) {
-
-        for (int i = led_min; i <= led_max; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
-        }
-
-
-        // highlight N as NKRO
-        RGB_MATRIX_INDICATOR_SET_COLOR(69, 0xFF, 0x00, 0x00);
+        const uint8_t nkro_led = 69;
+        const uint8_t snaptap_led = 44;
+        const uint8_t reset_led = 48;
+        const uint8_t clear_led = 74;
+        const uint8_t signal_led = 52;
+        const uint8_t openrgb_led = 40;
         
-        // highlight T as SnapTap
-        RGB_MATRIX_INDICATOR_SET_COLOR(44, 0xFF, 0xA5, 0x00);
-        
-        // highlight Q as reset
-        RGB_MATRIX_INDICATOR_SET_COLOR(48, 0xFF, 0xFF, 0x00);
-
-        // highlight Z as clear eeprom
-        RGB_MATRIX_INDICATOR_SET_COLOR(74, 0x7A, 0x00, 0xFF);
-
-        // highlight S as SignalRGB
-        RGB_MATRIX_INDICATOR_SET_COLOR(52, 0x00, 0xFF, 0x00);
-        
-        // highlight O as OpenRGB
-        RGB_MATRIX_INDICATOR_SET_COLOR(40, 0x00, 0xFF, 0xFF);
+        RGB_MATRIX_INDICATOR_SET_COLOR(nkro_led, 0xFF, 0x00, 0x00);
+        RGB_MATRIX_INDICATOR_SET_COLOR(snaptap_led, 0xFF, 0xA5, 0x00);
+        RGB_MATRIX_INDICATOR_SET_COLOR(reset_led, 0xFF, 0xFF, 0x00);
+        RGB_MATRIX_INDICATOR_SET_COLOR(clear_led, 0x7A, 0x00, 0xFF);
+        RGB_MATRIX_INDICATOR_SET_COLOR(signal_led, 0x00, 0xFF, 0x00);
+        RGB_MATRIX_INDICATOR_SET_COLOR(openrgb_led, 0x00, 0xFF, 0xFF);
     }
 
     if (IS_LAYER_ON(4)) {
-
-        for (int i = led_min; i <= led_max; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
+        const uint8_t nav_led = 28;
+        const uint8_t numpad_leds[16] = {29,30,31,32,42,41,40,39,57,58,59,60,68,67,66,65};
+        const uint8_t f1_led = 20;
+        
+        RGB_MATRIX_INDICATOR_SET_COLOR(nav_led, 0xFF, 0x00, 0x00);
+        for (uint8_t i = 0; i < 16; i++) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(numpad_leds[i], 0x00, 0xFF, 0x00);
         }
-
-        RGB_MATRIX_INDICATOR_SET_COLOR(28, 0xFF, 0x00, 0x00);
-        //numpad
-        const uint8_t led_indexesrgb[16] = {
-            29,30,31,32, 
-            42,41,40,39,
-            57,58,59,60,
-            68,67,66,65
-        };
-        for (int i = 0; i < 16; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(led_indexesrgb[i], 0x00, 0xFF, 0x00);
-        }
-
-        RGB_MATRIX_INDICATOR_SET_COLOR(20, 0x7A, 0x00, 0xFF);
+        RGB_MATRIX_INDICATOR_SET_COLOR(f1_led, 0x7A, 0x00, 0xFF);
     }
 
     process_indicator_queue(led_min, led_max);
