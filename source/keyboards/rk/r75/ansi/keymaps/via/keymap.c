@@ -10,6 +10,7 @@
 #include "features/indicators.h"
 #include "features/rgb_keys.h"
 #include "features/socd_cleaner.h"
+#include "features/game_mode.h"
 
 void housekeeping_task_user(void) {
     // Note: We can decide what to do with the MAC Led in this function
@@ -50,6 +51,7 @@ enum custom_keycodes {
     SOCDON = SAFE_RANGE,
     SOCDOFF,
     SOCDTOG,
+    GAME_MODE,  // Game Mode toggle
 };
 
 // clang-format off
@@ -78,7 +80,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,  _______,  RGB_MOD,  KC_PAUSE,
         _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,             _______,  KC_END,
         _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   MO(4),              RGB_VAI,
-        _______,  _______,  _______,                      _______,                                 MO(2),  _______,              RGB_SPD,  RGB_VAD,  RGB_SPI 
+        _______,  _______,  _______,                      _______,                                 MO(2),  GAME_MODE,              RGB_SPD,  RGB_VAD,  RGB_SPI 
         ),
 
     [2] = LAYOUT( /* RESET */
@@ -141,7 +143,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return false;
     }
 
+    // Обработка сочетания Fn + R_Shift + G для Game Mode
+    if (keycode == KC_G && record->event.pressed) {
+        // Проверяем, активен ли слой FN (1) и нажат ли правый Shift
+        if (IS_LAYER_ON(_WIN_FN_LYR) && get_mods() & MOD_RSFT) {
+            game_mode_toggle();
+            return false;  // Не передаем нажатие G дальше
+        }
+    }
+
     switch (keycode) {
+        case GAME_MODE:
+            if (record->event.pressed) {
+                game_mode_toggle();
+            }
+            return false;
         case QK_MAGIC_TOGGLE_NKRO:
             if (record->event.pressed) {
                 clear_keyboard(); // clear first buffer to prevent stuck keys

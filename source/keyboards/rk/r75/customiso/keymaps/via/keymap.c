@@ -10,6 +10,7 @@
 #include "features/indicators.h"
 #include "features/rgb_keys.h"
 #include "features/socd_cleaner.h"
+#include "features/game_mode.h"
 
 void housekeeping_task_user(void) {
     // Note: We can decide what to do with the MAC Led in this function
@@ -52,7 +53,8 @@ enum custom_keycodes {
     SOCDOFF,
     SOCDTOG,
     SWITCH_MODE,
-    SIGNAL_MODE
+    SIGNAL_MODE,
+    GAME_MODE_TOG  // Toggle Game Mode
 };
 
 // clang-format off
@@ -91,6 +93,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______,  _______,  SIGNAL_MODE,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,         _______,  _______,
         _______,  _______,  TD_KB_CLR,   _______,  _______,  _______,  NK_TOGG,  _______,  _______,  _______,  _______,  _______, _______,  _______, 
         _______,  _______,  _______,                      _______,                                 _______,  _______,            _______,  _______,  _______
+        ),
+
+    [5] = LAYOUT( /* Fn Layer - Alternative with Game Mode */
+        _______,  KC_MYCM,  KC_WHOM,  KC_MAIL,  KC_CALC,  KC_MSEL,  KC_MSTP,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,   KC_SCRL,  KC_PAUSE,
+        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,  _______,  _______,  KC_PSCR,
+        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RGB_HUD,  RGB_HUI,  RGB_M_P,  RGB_RMOD,  RGB_MOD,  RGB_TOG,  KC_INS,
+        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RGB_SAD,  RGB_SAI,  RGB_SPD,  _______,             _______,  KC_END,
+        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RGB_VAD,  RGB_VAI,  _______,  _______,   MO(2),    GAME_MODE_TOG,
+        _______,  _______,  _______,                      _______,                                _______,  _______,              RGB_SPD, RGB_VAD,  RGB_SPI 
         ),
 
     [3] = LAYOUT( /* Mac Layer */
@@ -244,6 +255,11 @@ case SIGNAL_MODE:
         case SOCDTOG: // Toggle SOCD Cleaner.
             if (record->event.pressed) {
                 socd_cleaner_enabled = !socd_cleaner_enabled;
+            }
+            return false;
+        case GAME_MODE_TOG: // Toggle Game Mode
+            if (record->event.pressed) {
+                game_mode_toggle();
             }
             return false;
         default:

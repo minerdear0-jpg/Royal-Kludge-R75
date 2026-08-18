@@ -6,6 +6,7 @@
 #include "indicators.h"
 #include "defines.h"
 #include "indicator_queue.h"
+#include "game_mode.h"
 
 // clang-format off
 
@@ -219,6 +220,9 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
         RGB_MATRIX_INDICATOR_SET_COLOR(20, 0x7A, 0x00, 0xFF);
     }
+
+    // Game Mode: подсветка WSAD красным
+    game_mode_update_leds(led_min, led_max);
 
     process_indicator_queue(led_min, led_max);
 
