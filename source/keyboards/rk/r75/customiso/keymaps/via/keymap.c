@@ -170,101 +170,82 @@ extern uint8_t is_orgb_mode;
 extern uint8_t is_srgb_mode;
 
 
+// Оптимизированная обработка записей клавиш
+// Критичный путь - минимизируем накладные расходы
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // SOCD Cleaner - только если включен (быстрая проверка внутри функции)
     if (!process_socd_cleaner(keycode, record, &socd_v)) {
         return false;
     }
     if (!process_socd_cleaner(keycode, record, &socd_h)) {
         return false;
     }
+    
+    // RGB Keys - быстрая обработка
     if (!process_rgb_keys(keycode, record)) {
         return false;
     }
-
+    
+    // Обработка только нажатий (не отпусканий) для экономии CPU
+    if (!record->event.pressed) {
+        return true;
+    }
+    
+    // Горячий путь: обработка custom keycodes
     switch (keycode) {
-case SWITCH_MODE:
 #ifdef OPENRGB_ENABLE
-    if (record->event.pressed) {                
-        // Toggle the OpenRGB mode and disable SignalRGB
-        is_orgb_mode = !is_orgb_mode;
-        if (is_orgb_mode) {
-            is_srgb_mode = false;  // Disable SignalRGB mode
-        }
-    }
-    // If both OpenRGB and SignalRGB are off, use the solid color mode
-    if (!is_orgb_mode && !is_srgb_mode) {
-        rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);  // Set solid color mode
-        rgb_matrix_sethsv_noeeprom(RGB_MATRIX_DEFAULT_HUE, RGB_MATRIX_DEFAULT_SAT, RGB_MATRIX_DEFAULT_VAL);  // Set default HSV
-    }
+        case SWITCH_MODE:
+            is_orgb_mode = !is_orgb_mode;
+            if (is_orgb_mode) {
+                is_srgb_mode = false;
+            }
+            if (!is_orgb_mode && !is_srgb_mode) {
+                rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
+                rgb_matrix_sethsv_noeeprom(RGB_MATRIX_DEFAULT_HUE, RGB_MATRIX_DEFAULT_SAT, RGB_MATRIX_DEFAULT_VAL);
+            }
+            return false;
 #endif
-    return false;
 
-case SIGNAL_MODE:
 #ifdef SIGNALRGB_SUPPORT_ENABLE
-    if (record->event.pressed) {                
-        // Toggle the SignalRGB mode and disable OpenRGB
-        is_srgb_mode = !is_srgb_mode;
-        if (is_srgb_mode) {
-            is_orgb_mode = false;  // Disable OpenRGB mode
-        }
-    }
-    // If both OpenRGB and SignalRGB are off, use the solid color mode
-    if (!is_orgb_mode && !is_srgb_mode) {
-        rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);  // Set solid color mode
-        rgb_matrix_sethsv_noeeprom(RGB_MATRIX_DEFAULT_HUE, RGB_MATRIX_DEFAULT_SAT, RGB_MATRIX_DEFAULT_VAL);  // Set default HSV
-    }
+        case SIGNAL_MODE:
+            is_srgb_mode = !is_srgb_mode;
+            if (is_srgb_mode) {
+                is_orgb_mode = false;
+            }
+            if (!is_orgb_mode && !is_srgb_mode) {
+                rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
+                rgb_matrix_sethsv_noeeprom(RGB_MATRIX_DEFAULT_HUE, RGB_MATRIX_DEFAULT_SAT, RGB_MATRIX_DEFAULT_VAL);
+            }
+            return false;
 #endif
-    return false;
-
-
-
-        // case SIGNAL_MODE:  // Replace SWITCH_MODE with your custom key
-        //     if (record->event.pressed) {
-        //         if (!is_orgb_mode) {  // Check if OpenRGB mode is off
-        //             is_signalrgb_active = !is_signalrgb_active;  // Toggle SignalRGB state
-        //             if (is_signalrgb_active) {
-        //                 signalrgb_mode_enable();  // Enable SignalRGB if active
-        //             } else {
-        //                 signalrgb_mode_disable();  // Disable SignalRGB if inactive
-        //             }
-        //         }
-        //     }
-        //     return false;
-
+        
         case QK_MAGIC_TOGGLE_NKRO:
-            if (record->event.pressed) {
-                clear_keyboard(); // clear first buffer to prevent stuck keys
-                wait_ms(50);
-                keymap_config.nkro = !keymap_config.nkro;
-                blink_NKRO(keymap_config.nkro);
-                wait_ms(50);
-                clear_keyboard(); // clear first buffer to prevent stuck keys
-                wait_ms(50);
-            }
+            clear_keyboard();
+            wait_ms(50);
+            keymap_config.nkro = !keymap_config.nkro;
+            blink_NKRO(keymap_config.nkro);
+            wait_ms(50);
+            clear_keyboard();
+            wait_ms(50);
             return false;
-        case SOCDON: // Turn SOCD Cleaner on.
-            if (record->event.pressed) {
-                socd_cleaner_enabled = true;
-            }
+        
+        case SOCDON:
+            socd_cleaner_enabled = true;
             return false;
-        case SOCDOFF: // Turn SOCD Cleaner off.
-            if (record->event.pressed) {
-                socd_cleaner_enabled = false;
-            }
+        
+        case SOCDOFF:
+            socd_cleaner_enabled = false;
             return false;
-        case SOCDTOG: // Toggle SOCD Cleaner.
-            if (record->event.pressed) {
-                socd_cleaner_enabled = !socd_cleaner_enabled;
-            }
+        
+        case SOCDTOG:
+            socd_cleaner_enabled = !socd_cleaner_enabled;
             return false;
-        case GAME_MODE_TOG: // Toggle Game Mode
-            if (record->event.pressed) {
-                game_mode_toggle();
-            }
+        
+        case GAME_MODE_TOG:
+            game_mode_toggle();
             return false;
+        
         default:
             return true;
     }
-
-    return true;
 }
