@@ -27,3 +27,6 @@ enum layer_names {
 #define LED_DOT 66
 #define LED_COMM 67
 #define LED_G 55
+#define LED_LSFT 75
+#define LED_LCTL 76
+#define LED_LGUI 77

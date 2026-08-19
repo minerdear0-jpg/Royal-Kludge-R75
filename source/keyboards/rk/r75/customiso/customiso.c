@@ -18,7 +18,7 @@ void keyboard_pre_init_kb(void) {
 }
 
 void suspend_power_down_kb(void) {
-    gpio_write_pin_low(LED_ENABLE_PIN);
+    gpio_write_pin_high(LED_ENABLE_PIN);
     suspend_power_down_user();
 }
 

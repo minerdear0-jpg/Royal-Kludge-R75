@@ -4,5 +4,6 @@ enum user_keycodes {
     SOCDON = SAFE_RANGE,
     SOCDOFF,
     SOCDTOG,
-    GAME_MODE_TOG
+    GAME_MODE_TOG,
+    LIGHT_PROFILE_CYC
 };

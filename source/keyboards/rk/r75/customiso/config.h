@@ -24,6 +24,7 @@
 
 /* RGB Matrix: onboard effects only. Host RGB protocols are not compiled in. */
 #define RGB_MATRIX_KEYPRESSES
+#define RGB_TRIGGER_ON_KEYDOWN
 #define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_SOLID_COLOR
 #define RGB_MATRIX_DEFAULT_HUE 166
 #define RGB_MATRIX_DEFAULT_SAT 255

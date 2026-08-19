@@ -80,6 +80,12 @@ void highlight_fn_keys(uint8_t led_min, uint8_t led_max) {
     }
 }
 
+static void fn_hint(uint8_t led_min, uint8_t led_max, const uint8_t *ids, uint8_t n, uint8_t r, uint8_t g, uint8_t b) {
+    for (uint8_t i = 0; i < n; i++) {
+        RGB_MATRIX_INDICATOR_SET_COLOR(ids[i], r, g, b);
+    }
+}
+
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     const uint8_t current_layer = get_highest_layer(layer_state);
 
@@ -90,34 +96,38 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     }
 
     if (current_layer == _WIN_LYR) {
-        if (rgb_matrix_get_flags() == LED_FLAG_INDICATOR) {
-            for (uint8_t i = led_min; i < led_max; i++) {
-                rgb_matrix_set_color(i, 0, 0, 0);
-            }
-        }
         process_indicator_queue(led_min, led_max);
         return true;
     }
 
-    if (IS_LAYER_ON(_WIN_FN_LYR) || IS_LAYER_ON(_CTL_LYR) || IS_LAYER_ON(_NUM_LYR)) {
+    if (IS_LAYER_ON(_CTL_LYR) || IS_LAYER_ON(_NUM_LYR)) {
         for (uint8_t i = led_min; i <= led_max; i++) {
             RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
         }
     }
 
     if (IS_LAYER_ON(_WIN_FN_LYR)) {
-        const uint8_t f_keys[13] = {20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8};
-        for (uint8_t i = 0; i < 13; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(f_keys[i], 0x00, 0x80, 0x80);
-        }
+        /* Legend only — rest of the board keeps the live RGB effect. */
+        const uint8_t media[] = {20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8};
+        fn_hint(led_min, led_max, media, 13, 0x00, 0x80, 0x80);
 
-        const uint8_t rgb_keys[15] = {41, 40, 39, 38, 37, 36, 58, 59, 60, 67, 66, 2, 3, 4, 63};
-        for (uint8_t i = 0; i < 15; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(rgb_keys[i], 0, 0, 255);
-        }
+        const uint8_t hue[] = {75, 67, 66}; /* <>  ,  . */
+        fn_hint(led_min, led_max, hue, 3, 0xFF, 0x40, 0xFF);
 
-        RGB_MATRIX_INDICATOR_SET_COLOR(64, 0xFF, 0x00, 0x00);
-        RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, 0xFF, 0x00, 0x00); // G Game Mode
+        const uint8_t bright[] = {63, 3}; /* up down */
+        fn_hint(led_min, led_max, bright, 2, 0xFF, 0xFF, 0xFF);
+
+        const uint8_t speed[] = {2, 4}; /* left right */
+        fn_hint(led_min, led_max, speed, 2, 0x00, 0x80, 0xFF);
+
+        const uint8_t mode[] = {38, 37, 62}; /* [ ] \ */
+        fn_hint(led_min, led_max, mode, 3, 0x00, 0xFF, 0x80);
+
+        RGB_MATRIX_INDICATOR_SET_COLOR(39, 0xFF, 0xA5, 0x00); /* P solid */
+        RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, 0xFF, 0x00, 0x00);
+        RGB_MATRIX_INDICATOR_SET_COLOR(64, 0xFF, 0x00, 0x00); /* RShift options */
+        RGB_MATRIX_INDICATOR_SET_COLOR(LED_SPACE, 0x7A, 0x00, 0xFF);
+        RGB_MATRIX_INDICATOR_SET_COLOR(22, 0xFF, 0xE0, 0x80); /* ` day/dusk/night */
     }
 
     if (IS_LAYER_ON(_CTL_LYR)) {

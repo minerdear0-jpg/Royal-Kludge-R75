@@ -39,7 +39,7 @@
         "on_state": 0
     },
     "rgb_matrix": {
-        "sleep": true,
+        "sleep": false,
         "animations": {
             "breathing": true,
             "cycle_all": true,
