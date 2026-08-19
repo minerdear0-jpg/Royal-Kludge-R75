@@ -1,15 +1,4 @@
 ```
-# Build artifacts
-build/
-dist/
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
-
 # Dependencies
 node_modules/
 venv/
@@ -17,24 +6,42 @@ venv/
 __pycache__/
 .mypy_cache/
 .pytest_cache/
+.julia/
+zig*/
+
+# Build artifacts
+build/
+dist/
 target/
 .gradle/
 
-# Editors
-.vscode/
-.idea/
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Logs and temp files
+*.log
+*.tmp
 *.swp
 *.swo
 
-# System files
-.DS_Store
-Thumbs.db
+# Environment
 .env
 .env.local
 *.env.*
 
-# Logs and coverage
-*.log
+# Editors
+.vscode/
+.idea/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
