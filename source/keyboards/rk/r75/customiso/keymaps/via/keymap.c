@@ -5,10 +5,10 @@
 #include "quantum.h"
 
 #include "features/defines.h"
+#include "features/custom_keycodes.h"
 #include "features/indicator_queue.h"
 #include "features/tap_hold.h"
 #include "features/indicators.h"
-#include "features/rgb_keys.h"
 #include "features/socd_cleaner.h"
 #include "features/game_mode.h"
 
@@ -48,14 +48,6 @@ enum tap_dance_keys {
 // *****************************
 // * Custom processing of keys *
 // *****************************
-enum custom_keycodes {
-    SOCDON = SAFE_RANGE,
-    SOCDOFF,
-    SOCDTOG,
-    SWITCH_MODE,
-    SIGNAL_MODE,
-    GAME_MODE_TOG  // Toggle Game Mode
-};
 
 // clang-format off
 tap_dance_action_t tap_dance_actions[] = {
@@ -191,6 +183,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return true;
     }
     
+    // Обработка Game Mode
+    if (!process_game_mode_keycode(keycode, record)) {
+        return false;
+    }
+    
     // Горячий путь: обработка custom keycodes
     switch (keycode) {
 #ifdef OPENRGB_ENABLE
@@ -239,10 +236,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         
         case SOCDTOG:
             socd_cleaner_enabled = !socd_cleaner_enabled;
-            return false;
-        
-        case GAME_MODE_TOG:
-            game_mode_toggle();
             return false;
         
         default:
