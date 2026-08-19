@@ -1,3 +1,4 @@
+```
 # Dependencies
 node_modules/
 venv/
@@ -7,27 +8,24 @@ __pycache__/
 .pytest_cache/
 .julia/
 zig*/
-target/
-.gradle/
-
-# Compiled files
-*.pyc
-*.class
-*.o
-*.exe
-*.dll
-*.so
-*.a
-*.obj
-*.out
 
 # Build artifacts
 dist/
 build/
-coverage/
-htmlcov/
+target/
+*.o
+*.obj
+*.out
+*.exe
+*.dll
+*.so
+*.a
+
+# Logs and temporary files
 *.log
 *.tmp
+*.swp
+*.swo
 
 # Environment
 .env
@@ -37,12 +35,15 @@ htmlcov/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# System
+# System files
 .DS_Store
 Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
 # Compressed files
 *.zip
@@ -67,6 +68,4 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-
-# Original rules preserved
-.qmk_firmware/
+```
