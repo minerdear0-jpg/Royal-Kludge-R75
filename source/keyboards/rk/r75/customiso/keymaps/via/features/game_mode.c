@@ -9,26 +9,23 @@ bool game_mode_is_active(void) {
     return game_mode_active;
 }
 
-// Прямая работа с буфером RGB для максимальной производительности
-// Избегаем накладных расходов rgb_matrix_set_color() в цикле
-static void game_mode_set_leds_raw(uint8_t r, uint8_t g, uint8_t b) {
+// Установка цвета для LED WSAD через стандартный API
+// Вызывается ТОЛЬКО при изменении состояния (событийная модель)
+static void game_mode_set_wsad_color(uint8_t r, uint8_t g, uint8_t b) {
     // Проверка на инициализированный RGB матрицы
     if (!rgb_matrix_is_enabled()) {
         return;
     }
     
-    // Прямая запись в буфер - минимальные накладные расходы
+    // Проход по массиву LED с проверкой диапазона
     for (uint8_t i = 0; i < GAME_MODE_LED_COUNT; i++) {
         uint8_t led_index = game_mode_leds[i];
         
-        // Проверка диапазона перед записью (защита от выхода за границы)
+        // Проверка диапазона перед вызовом API
         if (led_index < RGB_MATRIX_LED_COUNT) {
-            rgb_matrix_led_buffer[led_index] = (rgb_led_t){r, g, b};
+            rgb_matrix_set_color(led_index, r, g, b);
         }
     }
-    
-    // Принудительное обновление только измененных LED
-    rgb_matrix_set_color_all(r, g, b);
 }
 
 // Включение Game Mode - событийная модель
@@ -65,12 +62,10 @@ void game_mode_toggle(void) {
 void game_mode_apply(void) {
     if (game_mode_active) {
         // Включить красный цвет для WSAD
-        game_mode_set_leds_raw(255, 0, 0);
+        game_mode_set_wsad_color(255, 0, 0);
     } else {
         // Очистить подсветку WSAD (черный цвет)
-        // Примечание: фактическая очистка происходит через систему индикаторов
-        // Здесь мы просто сбрасываем наш флаг
-        game_mode_set_leds_raw(0, 0, 0);
+        game_mode_set_wsad_color(0, 0, 0);
     }
 }
 

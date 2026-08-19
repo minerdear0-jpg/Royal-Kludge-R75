@@ -63,14 +63,14 @@ static const uint8_t LED_NKRO_OFF[] = {70, 68, 56, 57};
 // Оптимизированная функция очистки диапазона LED
 static inline void clear_led_range(uint8_t led_min, uint8_t led_max) {
     for (uint8_t i = led_min; i <= led_max; i++) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
+        rgb_matrix_set_color(i, 0, 0, 0);
     }
 }
 
 // Оптимизированная функция установки цвета для массива LED
 static inline void set_led_array(const uint8_t* leds, uint8_t count, uint8_t r, uint8_t g, uint8_t b) {
     for (uint8_t i = 0; i < count; i++) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(leds[i], r, g, b);
+        rgb_matrix_set_color(leds[i], r, g, b);
     }
 }
 
@@ -124,7 +124,7 @@ void highlight_fn_keys(uint8_t led_min, uint8_t led_max) {
     rgb_led_t new_rgb = get_complementary_color(rgb, false);
     
     for (uint8_t i = led_min; i < led_max; i++) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(i, new_rgb.r, new_rgb.g, new_rgb.b);
+        rgb_matrix_set_color(i, new_rgb.r, new_rgb.g, new_rgb.b);
     }
 }
 
@@ -157,24 +157,24 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     if (IS_LAYER_ON(1)) {
         set_led_array(LED_F_KEYS, 13, 0x00, 0x80, 0x80);
         set_led_array(LED_FN_ROW, 15, 0, 0, 255);
-        RGB_MATRIX_INDICATOR_SET_COLOR(64, 0xFF, 0x00, 0x00);
+        rgb_matrix_set_color(64, 0xFF, 0x00, 0x00);
     }
     
     // Слой 2 (Options Layer)
     if (IS_LAYER_ON(2)) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(69, 0xFF, 0x00, 0x00);  // NKRO
-        RGB_MATRIX_INDICATOR_SET_COLOR(44, 0xFF, 0xA5, 0x00); // SnapTap
-        RGB_MATRIX_INDICATOR_SET_COLOR(48, 0xFF, 0xFF, 0x00); // Reset
-        RGB_MATRIX_INDICATOR_SET_COLOR(74, 0x7A, 0x00, 0xFF); // Clear EEPROM
-        RGB_MATRIX_INDICATOR_SET_COLOR(52, 0x00, 0xFF, 0x00); // SignalRGB
-        RGB_MATRIX_INDICATOR_SET_COLOR(40, 0x00, 0xFF, 0xFF); // OpenRGB
+        rgb_matrix_set_color(69, 0xFF, 0x00, 0x00);  // NKRO
+        rgb_matrix_set_color(44, 0xFF, 0xA5, 0x00); // SnapTap
+        rgb_matrix_set_color(48, 0xFF, 0xFF, 0x00); // Reset
+        rgb_matrix_set_color(74, 0x7A, 0x00, 0xFF); // Clear EEPROM
+        rgb_matrix_set_color(52, 0x00, 0xFF, 0x00); // SignalRGB
+        rgb_matrix_set_color(40, 0x00, 0xFF, 0xFF); // OpenRGB
     }
     
     // Слой 4 (Numpad Layer)
     if (IS_LAYER_ON(4)) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(28, 0xFF, 0x00, 0x00);
+        rgb_matrix_set_color(28, 0xFF, 0x00, 0x00);
         set_led_array(LED_NUMPAD, 16, 0x00, 0xFF, 0x00);
-        RGB_MATRIX_INDICATOR_SET_COLOR(20, 0x7A, 0x00, 0xFF);
+        rgb_matrix_set_color(20, 0x7A, 0x00, 0xFF);
     }
     
     // Обработка очереди индикаторов
