@@ -14,13 +14,10 @@
 
 /**
  * @file socd_cleaner.c
- * @brief SOCD Cleaner implementation - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
+ * @brief SOCD Cleaner implementation
  *
- * Оптимизации для производительности:
- * 1. Минимизация ветвлений в горячем пути
- * 2. Битовые операции вместо арифметических
- * 3. Ранний выход при неактивном состоянии
- * 4. Inline-кандидаты для критичных функций
+ * For full documentation, see
+ * <https://getreuer.info/posts/keyboards/socd-cleaner>
  */
 
 #include "socd_cleaner.h"
@@ -31,85 +28,55 @@ extern "C" {
 
 bool socd_cleaner_enabled = true;
 
-// Оптимизированная функция обновления клавиши
-// Используем inline подсказку для компилятора
-static inline void update_key_fast(uint8_t keycode, bool press) {
-    if (press) {
-        add_key(keycode);
-    } else {
-        del_key(keycode);
-    }
+static void update_key(uint8_t keycode, bool press) {
+  if (press) {
+    add_key(keycode);
+  } else {
+    del_key(keycode);
+  }
 }
 
-// Оптимизированная обработка SOCD с минимальными ветвлениями
 bool process_socd_cleaner(uint16_t keycode, keyrecord_t* record,
                           socd_cleaner_t* state) {
-    // Критичная оптимизация: быстрый выход если SOCD отключен глобально
-    if (!socd_cleaner_enabled) {
-        return true;
-    }
-    
-    // Быстрый выход если разрешение выключено для этой пары
-    if (state->resolution == SOCD_CLEANER_OFF) {
-        return true;
-    }
-    
-    // Проверка что keycode принадлежит нашей паре
-    // Используем сравнение вместо массива для скорости
-    const uint16_t key0 = state->keys[0];
-    const uint16_t key1 = state->keys[1];
-    
-    if (keycode != key0 && keycode != key1) {
-        return true;  // Быстрый выход для нерелевантных клавиш
-    }
-    
-    // Оптимизация: вычисляем индекс через битовую операцию вместо условия
-    // i = 0 если keycode == key0, i = 1 если keycode == key1
-    const uint8_t i = (keycode == key1);
-    const uint8_t opposing = i ^ 1;  // XOR для получения противоположного индекса
-    
-    // Отслеживаем физическое нажатие
-    state->held[i] = record->event.pressed;
-    
-    // Основной путь: обрабатываем только если противоположная клавиша зажата
-    if (!state->held[opposing]) {
-        return true;  // Быстрый выход - нет конфликта SOCD
-    }
-    
-    // Горячий путь: обработка конфликта SOCD
-    // Разворачиваем switch для избежания накладных расходов
-    const uint8_t resolution = state->resolution;
-    
-    if (resolution == SOCD_CLEANER_LAST) {
-        // Last input priority - наиболее популярный режим
-        update_key_fast(state->keys[opposing], !state->held[i]);
-        // Продолжаем стандартную обработку
-        return true;
-    }
-    
-    if (resolution == SOCD_CLEANER_NEUTRAL) {
-        // Neutral resolution - отменяем обе клавиши
-        update_key_fast(state->keys[opposing], !state->held[i]);
-        send_keyboard_report();
-        return false;  // Пропускаем стандартную обработку
-    }
-    
-    // Обработка режимов 0_WINS и 1_WINS
-    if (resolution >= SOCD_CLEANER_0_WINS && resolution <= SOCD_CLEANER_1_WINS) {
-        const uint8_t winner = resolution - SOCD_CLEANER_0_WINS;
-        
-        if (opposing == winner) {
-            // Противоположная клавиша выигрывает - текущая игнорируется
-            return false;
-        } else {
-            // Текущая клавиша выигрывает
-            update_key_fast(state->keys[opposing], !state->held[i]);
-        }
-    }
-    
-    return true;
-}
+  if (!socd_cleaner_enabled || !state->resolution ||
+      (keycode != state->keys[0] && keycode != state->keys[1])) {
+    return true;  // Quick return when disabled or on unrelated events.
+  }
+  // The current event corresponds to index `i`, 0 or 1, in the SOCD key pair.
+  const uint8_t i = (keycode == state->keys[1]);
+  const uint8_t opposing = i ^ 1;  // Index of the opposing key.
 
-#ifdef __cplusplus
+  // Track which keys are physically held (vs. keys in the report).
+  state->held[i] = record->event.pressed;
+
+  // Perform SOCD resolution for events where the opposing key is held.
+  if (state->held[opposing]) {
+    switch (state->resolution) {
+      case SOCD_CLEANER_LAST:  // Last input priority with reactivation.
+        // If the current event is a press, then release the opposing key.
+        // Otherwise if this is a release, then press the opposing key.
+        update_key(state->keys[opposing], !state->held[i]);
+        break;
+
+      case SOCD_CLEANER_NEUTRAL:  // Neutral resolution.
+        // Same logic as SOCD_CLEANER_LAST, but skip default handling so that
+        // the current key has no effect while the opposing key is held.
+        update_key(state->keys[opposing], !state->held[i]);
+        // Send updated report (normally, default handling would do this).
+        send_keyboard_report();
+        return false;  // Skip default handling.
+
+      case SOCD_CLEANER_0_WINS:  // Key 0 wins.
+      case SOCD_CLEANER_1_WINS:  // Key 1 wins.
+        if (opposing == (state->resolution - SOCD_CLEANER_0_WINS)) {
+          // The opposing key is the winner. The current key has no effect.
+          return false;  // Skip default handling.
+        } else {
+          // The current key is the winner. Update logic is same as above.
+          update_key(state->keys[opposing], !state->held[i]);
+        }
+        break;
+    }
+  }
+  return true;  // Continue default handling to press/release current key.
 }
-#endif
