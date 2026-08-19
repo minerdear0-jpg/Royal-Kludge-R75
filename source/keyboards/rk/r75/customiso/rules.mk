@@ -36,5 +36,6 @@ LTO_ENABLE = yes
 # Custom source files
 SRC += game_mode.c socd_cleaner.c
 
-# Include common rules
-include ../../../common_rules.mk
+# Link Time Optimization for better performance
+OPTIMIZE = yes
+LTO_ENABLE = yes
