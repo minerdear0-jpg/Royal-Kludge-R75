@@ -1,122 +1,120 @@
-# ⌨️ Royal Kludge R75 - Custom QMK Firmware
+# Royal Kludge R75 — QMK
 
-A high-performance, feature-rich custom QMK firmware for the **Royal Kludge R75 (Wired ANSI/ISO)**. This project aims to unlock the full potential of the R75, providing advanced features like SOCD cleaning, OpenRGB/SignalRGB integration, and highly customizable layers.
+Прошивка для проводной RK R75 (WB32FQ95). RGB и слои живут на клавиатуре; VIA — только раскладка. OpenRGB и SignalRGB намеренно не используются.
 
----
+Linux на слое 0 — это нормальная «Windows» раскладка: Super стоит там же, где Win. Слой Mac нужен только macOS.
 
-## 🚀 Key Features
+USB опрос 1 мс (1000 Гц). Debounce 5 мс, тип `asym_eager_defer_pk` (нажатие сразу, отпускание с антидребезгом). Энкодер: `TAP_CODE_DELAY` / `ENCODER_MAP_KEY_DELAY` 10 мс вместо дефолтных 100.
 
-- **QMK & VIA Support**: Full customization through the powerful QMK firmware and easy-to-use VIA interface.
-- **⚡ SOCD Cleaner**: Simultaneous Opposing Cardinal Directions cleaning (Last Win) - essential for competitive gaming (e.g., CS2, Valorant).
-- **🕹️ NKRO (N-Key Rollover)**: Never miss a keystroke with full N-key rollover support.
-- **🌈 Advanced RGB Integration**:
-  - **OpenRGB**: Direct control via OpenRGB for synchronized lighting across all your devices.
-  - **SignalRGB**: Native support for SignalRGB with a dedicated plugin.
-  - Smooth transitions and reactive effects.
-- **🛡️ Safety First**: Triple-tap protection for critical functions like Bootloader reset and EEPROM clearing.
-- **📁 Multi-Layer Support**: Optimized layers for Windows, macOS, and dedicated Numpad functionality.
+Готовые `.hex` / `.bin` — в папке [`firmware/`](firmware/) этого репозитория и в [GitHub Releases](https://github.com/minerdear0-jpg/Royal-Kludge-R75/releases) (когда релиз опубликован).
 
----
+## Какой файл качать
 
-## 📦 Firmware Variants
+| Файл | Клавиатура | USB VID:PID |
+| :--- | :--- | :--- |
+| `royal_kludge_r75_customiso_via.hex` | **ISO** (Enter высокой формы, `<>` слева от Z) | `342d:e483` |
+| `royal_kludge_r75_custom_via.hex` | **ANSI** (рекомендуется) | `342d:e484` |
+| `royal_kludge_r75_ansi_via.hex` | ANSI, тот же PID — запасной билд | `342d:e484` |
 
-| Firmware Image | Features | USB IDs (VID:PID) | Status |
-| :--- | :--- | :--- | :--- |
-| **Original Firmware** | QMK, VIA | `342d:e484` | Backup |
-| **VIA + OpenRGB + SignalRGB** | All Features | `342d:e484` | ✔️ Maintained |
-| **VIA + OpenRGB + SignalRGB (ISO)** | All Features for ISO Layout | `342d:e483` | ✔️ Maintained |
+Не прошивай ISO-файл на ANSI и наоборот: разъедет RGB и Enter.
 
----
+## Как войти в bootloader (DFU)
 
-## 🛠️ Usage Guide
+Клавиатура должна мигать / пропасть как обычный HID и появиться как WB32 DFU.
 
-### 📂 Layer System Overview
+1. Выдерни USB.
+2. Зажми **Escape** (сотрёт EEPROM) **или** кнопку Reset на нижней стороне PCB (настройки сохранятся).
+3. Воткни USB, не отпуская клавишу/кнопку, держи ещё секунду.
 
-The firmware uses a 6-layer system for maximum flexibility:
+Если текущая прошивка уже QMK: **Fn + Right Shift**, трижды **Q** (tap dance reset).
 
-1.  **Layer 0 (Base)**: Default Windows layout.
-2.  **Layer 1 (Fn)**: Multimedia, lighting controls, and navigation.
-3.  **Layer 2 (Options)**: System configurations (Reset, NKRO, SOCD, Mode Toggle).
-4.  **Layer 3 (Mac)**: Optimized layout for macOS users.
-5.  **Layer 4 (Numpad)**: Integrated Numpad layout on the alpha keys.
+## Прошивка
 
-### ⌨️ Key Combinations
+Нужен [wb32-dfu-updater](https://github.com/WestberryTech/wb32-dfu-updater/releases) (это не STM32 DFU). QMK Toolbox умеет WB32, если в нём есть этот бэкенд.
 
-#### ⚙️ System Controls (Layer 2)
-*Access by holding `Fn` + `Right Shift`*
+Подставь путь к скачанному `.hex`. Адрес вспышки: `0x08000000`.
 
-| Action | Shortcut |
-| :--- | :--- |
-| **Enter Bootloader** | `Triple Tap Q` |
-| **Clear EEPROM** | `Triple Tap Z` |
-| **Toggle NKRO** | `N` |
-| **Toggle SOCD** | `T` |
-| **Toggle OpenRGB** | `O` |
-| **Toggle SignalRGB** | `S` |
-| **Switch to Layer 0** | `1` |
-| **Switch to Layer 3 (Mac)** | `3` |
-| **Switch to Layer 4 (Numpad)** | `4` |
-
-#### 💡 RGB Modes (Layer 2)
-If using the All-in-One firmware:
-- Toggle **OpenRGB**: `Fn` + `Right Shift` + `O`
-- Toggle **SignalRGB**: `Fn` + `Right Shift` + `S`
-- *Note: If both are off, the keyboard reverts to standard QMK RGB effects.*
-
----
-
-## 📥 Installation
-
-### 1️⃣ Flashing the Firmware
-Use your preferred tool (e.g., QMK Toolbox or `wb32-dfu-updater_cli`) to flash the `.hex` file corresponding to your desired configuration.
-
-### 2️⃣ VIA Configuration
-To use VIA, you may need to manually load the JSON layout file:
-1.  Open [VIA](https://usevia.app/).
-2.  Enable the **"Design"** tab in Settings.
-3.  Upload `VIA Layout.json` (or `VIA Layout ISO.json`) from the `layouts/` folder.
-
-### 3️⃣ SignalRGB Setup
-1.  Copy [`SignalRGB Plugin for RK R75.js`](plugins/SignalRGB%20Plugin%20for%20RK%20R75.js) to:
-    `%userprofile%/Documents/WhirlwindFX/Plugins`
-2.  Restart SignalRGB.
-
-### 4️⃣ OpenRGB Setup
-1.  Open **OpenRGB**.
-2.  Ensure your keyboard is detected.
-3.  Configure the settings as shown below:
-    
-![OpenRGB Settings](assets/OpenRGB%20Setting.png)
-
----
-
-## 🏗️ Compiling from Source
-
-To build the firmware yourself, you will need to clone the appropriate QMK firmware repository:
-
-- **For OpenRGB & SignalRGB Support**: Use the [OpenSignalRGB-2026 Branch](https://github.com/snakkarike/qmk_firmware/tree/OpenSignalRGB-2026).
-- **For Traditional QMK**: Use the [Official QMK Firmware](https://github.com/qmk/qmk_firmware).
-
-Once your environment is set up, use the following command:
+### Linux
 
 ```shell
-qmk compile -j 0 -kb rk/r75/custom -km via
+# Arch / CachyOS: пакет или бинарник с GitHub
+# udev, чтобы не нужен был root (после — переподключи клавиатуру):
+# SUBSYSTEM=="usb", ATTRS{idVendor}=="342d", MODE="0666"
+
+wb32-dfu-updater_cli -t -s 0x08000000 -D royal_kludge_r75_customiso_via.hex
 ```
-*The `-j 0` flag enables parallel building for faster results.*
 
----
+Если команда не видит устройство — ты не в DFU (повтори шаг с Escape).
 
-## ⚠️ Disclaimer
-> [!CAUTION]
-> This is a custom firmware. While extensively tested, there is always a risk of bricking your device. Use at your own risk.
+### Windows
 
----
+1. Скачай `wb32-dfu-updater` для Windows или [QMK Toolbox](https://github.com/qmk/qmk_toolbox/releases).
+2. Войди в DFU.
+3. Toolbox: Open `.hex` → Flash.  
+   CLI: `wb32-dfu-updater_cli.exe -t -s 0x08000000 -D royal_kludge_r75_custom_via.hex`
+4. Если Windows ставит «неизвестное устройство» — Zadig, WinUSB на WB32 DFU.
 
-## 🤝 Credits & Thanks
-Huge thanks to the original contributors whose work paved the way for this project:
-- [@irfanjmdn](https://github.com/irfanjmdn/)
-- [@sdk66](https://github.com/sdk66/)
-- [@iamdanielv](https://github.com/iamdanielv)
+### macOS
 
----
-*Maintained with ❤️ for the mechanical keyboard community.*
+1. QMK Toolbox **или** `wb32-dfu-updater` (бинарник с GitHub).
+2. Войди в DFU, разреши доступ к USB, если спросит.
+3. Toolbox: Open → Flash.  
+   CLI: `wb32-dfu-updater_cli -t -s 0x08000000 -D royal_kludge_r75_custom_via.hex`
+
+После прошивки выдерни USB и воткни снова.
+
+## VIA
+
+1. [usevia.app](https://usevia.app/) → Settings → включи **Design**.
+2. Загрузи JSON из `layouts/`: `VIA Layout ISO.json` для ISO, `VIA Layout.json` для ANSI.
+
+## Что умеет MCU в офисе и в IDE
+
+Клавиатура не видит монитор по DDC и не управляет окнами IDE сама. Она шлёт HID. Имеет смысл то, что ОС принимает без демона на ПК.
+
+| На клавиатуре | Зачем |
+| :--- | :--- |
+| **Fn + энкодер** | Яркость экрана (`KC_BRID` / `KC_BRIU` → `XF86MonBrightness*`) |
+| Энкодер без Fn | Громкость |
+| Fn + Right Shift + энкодер | Перемотка медиа |
+| Fn+G | Game Mode (Win/Super lock, SOCD, NKRO, WASD) |
+| VIA | Макросы IDE, F13–F24, слой под i3/Sway/Hyprland |
+
+На ноутбуке и на многих DE Linux яркость с энкодера работает сразу. На **внешнем** мониторе HID яркость часто ничего не делает: там нужен `ddcutil` (или бинд WM), это уже хост, не прошивка.
+
+Не копируется из [lazercore](https://github.com/pk-vishnu/lazercore): Type Alchemy (Unicode на хосте) и аудиовизуализатор (Python + Raw HID).
+
+## Светодиоды Mac / Win-lock
+
+На плате два отдельных LED, оба **active-low** (горит = пин в `0`).
+
+| LED | Смысл |
+| :--- | :--- |
+| **Mac** | Только слой 3 (модификаторы macOS) |
+| **Win-lock** | Заблокирован GUI/Super (`keymap_config.no_gui`, обычно Game Mode) |
+
+Linux: слой 0, слой Mac не включать.
+
+## Слои
+
+| Слой | Роль |
+| :--- | :--- |
+| 0 | День: Linux / Windows |
+| 1 | Fn: медиа, RGB, яркость на энкодере, Fn+G |
+| 2 | Options: bootloader, EEPROM, NKRO, SOCD, Mac/numpad |
+| 3 | macOS (Alt/GUI swap) |
+| 4 | Numpad на альфа-клавишах |
+
+## Сборка из исходников
+
+Официальный QMK, fork с OpenRGB не нужен. Клавиатуры лежат в `source/keyboards/rk/r75/` — скопируй `customiso`, `custom`, `ansi` в `qmk_firmware/keyboards/royal_kludge/r75/`.
+
+```shell
+qmk compile -kb royal_kludge/r75/customiso -km via
+qmk compile -kb royal_kludge/r75/custom -km via
+qmk compile -kb royal_kludge/r75/ansi -km via
+```
+
+## Credits
+
+[@irfanjmdn](https://github.com/irfanjmdn/), [@sdk66](https://github.com/sdk66/), [@iamdanielv](https://github.com/iamdanielv). Идея Fn+энкодер = яркость — [lazercore](https://github.com/pk-vishnu/lazercore).

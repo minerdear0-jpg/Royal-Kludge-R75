@@ -7,7 +7,3 @@ void blink_space(bool);
 void blink_NKRO(bool);
 void blink_numbers(bool);
 void highlight_fn_keys(uint8_t led_min, uint8_t led_max);
-
-// Game Mode integration
-void game_mode_update_indicators(uint8_t led_min, uint8_t led_max);
-bool is_game_mode_active(void);

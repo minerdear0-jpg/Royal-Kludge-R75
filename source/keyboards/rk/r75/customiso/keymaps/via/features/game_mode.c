@@ -1,87 +1,61 @@
 #include "game_mode.h"
+#include "socd_cleaner.h"
 #include "rgb_matrix.h"
 
-// Внутреннее состояние - инкапсулировано, нет глобального extern
-static bool game_mode_active = false;
+static bool    game_mode_enabled = false;
+static uint8_t saved_rgb_mode    = RGB_MATRIX_SOLID_COLOR;
+static bool    saved_no_gui      = false;
 
-// Получение состояния (inline для производительности)
-bool game_mode_is_active(void) {
-    return game_mode_active;
+static const uint8_t wsad_leds[] = {GAME_MODE_LED_W, GAME_MODE_LED_S, GAME_MODE_LED_A, GAME_MODE_LED_D};
+
+void game_mode_init(void) {
+    game_mode_enabled    = false;
+    socd_cleaner_enabled = false;
 }
 
-// Установка цвета для LED WSAD через стандартный API
-// Вызывается ТОЛЬКО при изменении состояния (событийная модель)
-static void game_mode_set_wsad_color(uint8_t r, uint8_t g, uint8_t b) {
-    // Проверка на инициализированный RGB матрицы
-    if (!rgb_matrix_is_enabled()) {
-        return;
-    }
-    
-    // Проход по массиву LED с проверкой диапазона
-    for (uint8_t i = 0; i < GAME_MODE_LED_COUNT; i++) {
-        uint8_t led_index = game_mode_leds[i];
-        
-        // Проверка диапазона перед вызовом API
-        if (led_index < RGB_MATRIX_LED_COUNT) {
-            rgb_matrix_set_color(led_index, r, g, b);
-        }
+static void game_mode_enable(void) {
+    game_mode_enabled    = true;
+    socd_cleaner_enabled = true;
+    saved_rgb_mode       = rgb_matrix_get_mode();
+    saved_no_gui         = keymap_config.no_gui;
+    keymap_config.no_gui = true;
+    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
+
+    if (!keymap_config.nkro) {
+        clear_keyboard();
+        keymap_config.nkro = true;
     }
 }
 
-// Включение Game Mode - событийная модель
-void game_mode_enable(void) {
-    if (game_mode_active) {
-        return;  // Уже включено, избегаем лишней работы
-    }
-    
-    game_mode_active = true;
-    game_mode_apply();  // Применить изменения один раз
+static void game_mode_disable(void) {
+    game_mode_enabled    = false;
+    socd_cleaner_enabled = false;
+    keymap_config.no_gui = saved_no_gui;
+    rgb_matrix_mode_noeeprom(saved_rgb_mode);
 }
 
-// Выключение Game Mode - событийная модель
-void game_mode_disable(void) {
-    if (!game_mode_active) {
-        return;  // Уже выключено, избегаем лишней работы
-    }
-    
-    game_mode_active = false;
-    game_mode_apply();  // Очистить изменения один раз
-}
-
-// Переключение режима с визуальной обратной связью
-void game_mode_toggle(void) {
-    if (game_mode_active) {
+bool game_mode_toggle(void) {
+    if (game_mode_enabled) {
         game_mode_disable();
     } else {
         game_mode_enable();
     }
+    return game_mode_enabled;
 }
 
-// Применение текущего состояния (вызывать ТОЛЬКО при изменении состояния)
-// Эта функция не должна вызываться в matrix_scan_user или rgb_matrix_indicators_advanced_user
-void game_mode_apply(void) {
-    if (game_mode_active) {
-        // Включить красный цвет для WSAD
-        game_mode_set_wsad_color(255, 0, 0);
-    } else {
-        // Очистить подсветку WSAD (черный цвет)
-        game_mode_set_wsad_color(0, 0, 0);
-    }
+bool game_mode_is_active(void) {
+    return game_mode_enabled;
 }
 
-// Обработка нажатий клавиш Game Mode
-bool process_game_mode_keycode(uint16_t keycode, keyrecord_t *record) {
-    // Обрабатываем только нажатие (не отпускание) для экономии CPU
-    if (!record->event.pressed) {
-        return true;
+void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
+    if (!game_mode_enabled) {
+        return;
     }
-    
-    switch (keycode) {
-        case GAME_MODE_TOG:
-            game_mode_toggle();
-            return false;  // Клавиша обработана, не передавать дальше
-        
-        default:
-            return true;  // Передать обработку другим модулям
+
+    for (uint8_t i = 0; i < 4; i++) {
+        const uint8_t led_index = wsad_leds[i];
+        if (led_index >= led_min && led_index < led_max) {
+            rgb_matrix_set_color(led_index, GAME_MODE_RED);
+        }
     }
 }

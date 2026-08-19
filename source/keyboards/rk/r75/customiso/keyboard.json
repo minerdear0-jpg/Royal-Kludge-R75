@@ -13,7 +13,7 @@
         "bootmagic": true,
         "encoder": true,
         "extrakey": true,
-        "mousekey": true,
+        "mousekey": false,
         "nkro": true,
         "rgb_matrix": true,
         "raw": true
@@ -30,7 +30,7 @@
         }
     },
     "dynamic_keymap": {
-        "layer_count": 6
+        "layer_count": 5
     },
     "processor": "WB32FQ95",
     "indicators": {
@@ -126,10 +126,11 @@
     },
     "url": "https://github.com/minerdear0-jpg/Royal-Kludge-R75",
     "usb": {
-        "device_version": "0.0.1",
+        "device_version": "0.0.2",
         "force_nkro": true,
         "pid": "0xE483",
-        "suspend_wakeup_delay": 1000,
+        "polling_interval": 1,
+        "suspend_wakeup_delay": 200,
         "vid": "0x342D"
     },
     "ws2812": {
