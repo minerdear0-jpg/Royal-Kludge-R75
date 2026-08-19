@@ -1,3 +1,4 @@
+```
 # Dependencies
 node_modules/
 venv/
@@ -10,7 +11,7 @@ zig*/
 target/
 .gradle/
 
-# Compiled/Build artifacts
+# Compiled files
 *.pyc
 *.class
 *.o
@@ -20,6 +21,8 @@ target/
 *.a
 *.obj
 *.out
+
+# Build artifacts
 dist/
 build/
 coverage/
@@ -65,3 +68,4 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+```
