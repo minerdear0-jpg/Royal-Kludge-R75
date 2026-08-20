@@ -117,6 +117,11 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
 #endif
 // clang-format on
 
+bool encoder_update_user(uint8_t index, bool clockwise) {
+    lighting_profile_note_activity();
+    return true;
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.pressed) {
         lighting_profile_note_activity();

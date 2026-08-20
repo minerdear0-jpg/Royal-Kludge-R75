@@ -17,10 +17,10 @@ enum {
 
 #define FADE_CIRC_MS  3000
 #define FADE_GAME_MS  500
+#define FADE_SLEEP_MS 2000
 #define BLINK_MS      120
 #define SLEEP_DAY_MS        (10UL * 60UL * 1000UL)
 #define SLEEP_TWILIGHT_MS   (5UL * 60UL * 1000UL)
-#define SLEEP_NIGHT_MS      (2UL * 60UL * 1000UL)
 #define SLEEP_GAMING_MS     (10UL * 60UL * 1000UL)
 #define EEPROM_DEFER_MS     2500
 #define USB_SUSPEND_RGB_MS  10000
@@ -51,13 +51,22 @@ static uint32_t eeprom_at;
 static bool     usb_down;
 static uint32_t usb_down_at;
 static bool     host_rgb_off;
+static uint8_t  courtesy      = 255;
+static bool     courtesy_run;
+static bool     courtesy_host;
+static uint8_t  courtesy_from = 255;
+static uint8_t  courtesy_to   = 255;
+static uint32_t courtesy_at;
+
+static uint8_t scale_chan(uint8_t c) {
+    return (uint8_t)((uint32_t)c * rgb_matrix_get_val() * courtesy / (255UL * 255UL));
+}
 
 static rgb_t with_val(rgb_t c) {
-    const uint8_t v = rgb_matrix_get_val();
-    rgb_t         o;
-    o.r = (uint8_t)((uint16_t)c.r * v / 255);
-    o.g = (uint8_t)((uint16_t)c.g * v / 255);
-    o.b = (uint8_t)((uint16_t)c.b * v / 255);
+    rgb_t o;
+    o.r = scale_chan(c.r);
+    o.g = scale_chan(c.g);
+    o.b = scale_chan(c.b);
     return o;
 }
 
@@ -94,8 +103,6 @@ static uint32_t sleep_ms(void) {
     switch (profile) {
         case LP_TWILIGHT:
             return SLEEP_TWILIGHT_MS;
-        case LP_NIGHT:
-            return SLEEP_NIGHT_MS;
         case LP_GAMING:
             return SLEEP_GAMING_MS;
         default:
@@ -116,11 +123,7 @@ static void flush_eeprom(void) {
     eeprom_dirty = false;
 }
 
-static void rgb_hold_black(void) {
-    if (host_rgb_off) {
-        return;
-    }
-    host_rgb_off = true;
+static void rgb_park(void) {
     flush_eeprom();
     rgb_matrix_set_color_all(0, 0, 0);
     rgb_matrix_update_pwm_buffers();
@@ -139,8 +142,36 @@ static void sync_game_features(void) {
     game_mode_set_active(profile == LP_GAMING && !fading && !blinking);
 }
 
+static void begin_courtesy(uint8_t to) {
+    if (courtesy == to && !courtesy_run) {
+        return;
+    }
+    if (courtesy_run && courtesy_to == to) {
+        return;
+    }
+    courtesy_from = courtesy;
+    courtesy_to   = to;
+    courtesy_at   = timer_read32();
+    courtesy_run  = true;
+    courtesy_host = (to == 0) && usb_down;
+    rgb_asleep    = false;
+    if (to != 0) {
+        rgb_matrix_enable_noeeprom();
+        apply_base(shown);
+        sync_game_features();
+    }
+}
+
+static void snap_courtesy_on(void) {
+    courtesy      = 255;
+    courtesy_run  = false;
+    courtesy_host = false;
+    rgb_asleep    = false;
+}
+
 static void begin_switch(uint8_t next) {
     const uint8_t prev = profile;
+    snap_courtesy_on();
     fade_from          = shown;
     profile            = next;
     if (next != LP_GAMING) {
@@ -166,7 +197,7 @@ void lighting_profile_init(void) {
     profile            = (raw < LP_COUNT) ? (uint8_t)raw : LP_DAY;
     last_circ          = (profile == LP_GAMING) ? LP_DAY : profile;
     last_input         = timer_read32();
-    rgb_asleep         = false;
+    snap_courtesy_on();
     blinking           = false;
     fading             = false;
     shown              = profile_paint_rgb(profile);
@@ -190,18 +221,11 @@ void lighting_profile_toggle_gaming(void) {
 
 void lighting_profile_note_activity(void) {
     last_input = timer_read32();
-    if (rgb_asleep) {
-        rgb_asleep = false;
-        rgb_matrix_enable_noeeprom();
-        shown = profile_paint_rgb(profile);
-        apply_base(shown);
-        sync_game_features();
-    }
     if (host_rgb_off) {
         host_rgb_off = false;
-        rgb_matrix_enable_noeeprom();
-        apply_base(shown);
-        sync_game_features();
+    }
+    if (rgb_asleep || courtesy < 255 || (courtesy_run && courtesy_to == 0)) {
+        begin_courtesy(255);
     }
 }
 
@@ -222,12 +246,15 @@ void lighting_profile_host_off(void) {
 void lighting_profile_host_on(void) {
     last_input = timer_read32();
     usb_down   = false;
-    if (host_rgb_off) {
-        host_rgb_off = false;
-        if (!rgb_asleep) {
-            rgb_matrix_enable_noeeprom();
-            apply_base(shown);
+    if (rgb_asleep) {
+        if (host_rgb_off) {
+            host_rgb_off = false;
         }
+        return;
+    }
+    if (host_rgb_off || (courtesy_run && courtesy_to == 0 && courtesy_host)) {
+        host_rgb_off = false;
+        begin_courtesy(255);
     }
 }
 
@@ -250,7 +277,7 @@ void lighting_profile_task(void) {
     }
 
     if (usb_down && !rgb_asleep && !host_rgb_off && timer_elapsed32(usb_down_at) >= USB_SUSPEND_RGB_MS) {
-        rgb_hold_black();
+        begin_courtesy(0);
     }
 
     if (blinking && timer_elapsed32(blink_at) >= BLINK_MS) {
@@ -274,11 +301,33 @@ void lighting_profile_task(void) {
         return;
     }
 
-    if (!rgb_asleep && !host_rgb_off && timer_elapsed32(last_input) >= sleep_ms()) {
-        rgb_asleep = true;
-        game_mode_set_active(false);
-        flush_eeprom();
-        rgb_matrix_disable_noeeprom();
+    if (courtesy_run) {
+        const uint32_t elapsed = timer_elapsed32(courtesy_at);
+        if (elapsed >= FADE_SLEEP_MS) {
+            courtesy     = courtesy_to;
+            courtesy_run = false;
+            if (courtesy == 0) {
+                if (usb_down || courtesy_host) {
+                    host_rgb_off  = true;
+                    courtesy_host = false;
+                } else {
+                    rgb_asleep = true;
+                    game_mode_set_active(false);
+                }
+                rgb_park();
+            } else {
+                courtesy_host = false;
+                sync_game_features();
+            }
+        } else {
+            courtesy = lerp8(courtesy_from, courtesy_to, (uint16_t)elapsed, FADE_SLEEP_MS);
+        }
+        return;
+    }
+
+    if (profile != LP_NIGHT && !rgb_asleep && !host_rgb_off &&
+        timer_elapsed32(last_input) >= sleep_ms()) {
+        begin_courtesy(0);
     }
 }
 
@@ -302,5 +351,5 @@ void lighting_profile_paint(uint8_t led_min, uint8_t led_max) {
 }
 
 uint8_t lighting_profile_scale_u8(uint8_t c) {
-    return (uint8_t)((uint16_t)c * rgb_matrix_get_val() / 255);
+    return scale_chan(c);
 }
