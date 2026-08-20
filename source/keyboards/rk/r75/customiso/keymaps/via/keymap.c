@@ -118,19 +118,22 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
 // clang-format on
 
 bool encoder_update_user(uint8_t index, bool clockwise) {
+    if (!lighting_profile_encoder(clockwise)) {
+        return false;
+    }
     lighting_profile_note_activity();
     return true;
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (record->event.pressed) {
-        lighting_profile_note_activity();
-    }
     if (!game_mode_process(keycode, record)) {
         return false;
     }
     if (!lighting_profile_process(keycode, record)) {
         return false;
+    }
+    if (record->event.pressed) {
+        lighting_profile_note_activity();
     }
     if (!process_socd_cleaner(keycode, record, &socd_v)) {
         return false;

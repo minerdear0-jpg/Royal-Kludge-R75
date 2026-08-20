@@ -14,4 +14,6 @@ void lighting_profile_note_activity(void);
 void lighting_profile_host_off(void);
 void lighting_profile_host_on(void);
 bool lighting_profile_is_gaming(void);
+bool lighting_profile_is_nightlight(void);
+bool lighting_profile_encoder(bool clockwise);
 bool lighting_profile_process(uint16_t keycode, keyrecord_t *record);

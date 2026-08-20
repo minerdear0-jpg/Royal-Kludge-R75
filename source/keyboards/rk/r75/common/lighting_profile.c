@@ -64,6 +64,7 @@ static bool     host_rgb_off;
 static uint8_t  courtesy      = 255;
 static bool     courtesy_run;
 static bool     courtesy_host;
+static bool     courtesy_lamp;
 static uint8_t  courtesy_from = 255;
 static uint8_t  courtesy_to   = 255;
 static uint32_t courtesy_at;
@@ -200,7 +201,11 @@ static void sync_game_features(void) {
     game_mode_set_active(profile == LP_GAMING && !fading && !blinking);
 }
 
-static void begin_courtesy(uint8_t to) {
+static bool in_nightlight(void) {
+    return nl_armed || nl_usb || nl_level != 0 || nl_run || courtesy_lamp;
+}
+
+static void begin_courtesy(uint8_t to, bool lamp) {
     if (courtesy == to && !courtesy_run) {
         return;
     }
@@ -211,7 +216,8 @@ static void begin_courtesy(uint8_t to) {
     courtesy_to   = to;
     courtesy_at   = timer_read32();
     courtesy_run  = true;
-    courtesy_host = (to == 0) && usb_down;
+    courtesy_host = (to == 0) && usb_down && !lamp;
+    courtesy_lamp = lamp;
     rgb_asleep    = false;
     if (to != 0) {
         rgb_matrix_enable_noeeprom();
@@ -224,7 +230,17 @@ static void snap_courtesy_on(void) {
     courtesy      = 255;
     courtesy_run  = false;
     courtesy_host = false;
+    courtesy_lamp = false;
     rgb_asleep    = false;
+}
+
+static void lamp_click(void) {
+    last_input = timer_read32();
+    if (courtesy_run) {
+        begin_courtesy(courtesy_to == 0 ? 255 : 0, true);
+        return;
+    }
+    begin_courtesy(courtesy == 0 ? 255 : 0, true);
 }
 
 static void begin_nl(uint8_t to, bool usb) {
@@ -332,8 +348,8 @@ void lighting_profile_note_activity(void) {
     if (host_rgb_off) {
         host_rgb_off = false;
     }
-    if (rgb_asleep || courtesy < 255 || (courtesy_run && courtesy_to == 0)) {
-        begin_courtesy(255);
+    if (rgb_asleep || (!courtesy_lamp && (courtesy < 255 || (courtesy_run && courtesy_to == 0)))) {
+        begin_courtesy(255, false);
     }
 }
 
@@ -361,7 +377,7 @@ void lighting_profile_host_on(void) {
     }
     if (host_rgb_off) {
         host_rgb_off = false;
-        begin_courtesy(255);
+        begin_courtesy(255, false);
     }
     if (nl_usb || (nl_run && nl_to == 255 && !nl_armed)) {
         nl_usb = false;
@@ -371,7 +387,34 @@ void lighting_profile_host_on(void) {
     }
 }
 
+bool lighting_profile_is_nightlight(void) {
+    return in_nightlight();
+}
+
+bool lighting_profile_encoder(bool clockwise) {
+    if (!in_nightlight()) {
+        return true;
+    }
+    uint8_t v = vals[LP_NIGHT];
+    if (clockwise) {
+        v = (v > (uint8_t)(255 - RGB_MATRIX_VAL_STEP)) ? 255 : (uint8_t)(v + RGB_MATRIX_VAL_STEP);
+    } else {
+        v = (v < RGB_MATRIX_VAL_STEP) ? 0 : (uint8_t)(v - RGB_MATRIX_VAL_STEP);
+    }
+    vals[LP_NIGHT] = v;
+    apply_val(v);
+    schedule_eeprom();
+    last_input = timer_read32();
+    return false;
+}
+
 bool lighting_profile_process(uint16_t keycode, keyrecord_t *record) {
+    if (keycode == KC_MUTE && in_nightlight()) {
+        if (record->event.pressed) {
+            lamp_click();
+        }
+        return false;
+    }
     const bool nl = (keycode == LIGHT_NIGHTLIGHT) ||
                     (IS_LAYER_ON(_WIN_FN_LYR) && record->event.key.row == NIGHTLIGHT_ROW &&
                      record->event.key.col == NIGHTLIGHT_COL);
@@ -457,16 +500,22 @@ void lighting_profile_task(void) {
             courtesy     = courtesy_to;
             courtesy_run = false;
             if (courtesy == 0) {
-                if (usb_down || courtesy_host) {
+                if (courtesy_lamp) {
+                    courtesy_host = false;
+                } else if (usb_down || courtesy_host) {
                     host_rgb_off  = true;
                     courtesy_host = false;
+                    rgb_park();
                 } else {
                     rgb_asleep = true;
                     game_mode_set_active(false);
+                    rgb_park();
                 }
-                rgb_park();
             } else {
                 courtesy_host = false;
+                if (!courtesy_lamp) {
+                    courtesy_lamp = false;
+                }
                 sync_game_features();
             }
         } else {
@@ -475,9 +524,9 @@ void lighting_profile_task(void) {
         return;
     }
 
-    if (!nl_armed && nl_level == 0 && !rgb_asleep && !host_rgb_off &&
+    if (!nl_armed && nl_level == 0 && !courtesy_lamp && !rgb_asleep && !host_rgb_off &&
         timer_elapsed32(last_input) >= sleep_ms()) {
-        begin_courtesy(0);
+        begin_courtesy(0, false);
     }
 }
 
