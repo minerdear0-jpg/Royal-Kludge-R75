@@ -1,6 +1,6 @@
 #include "lighting_profile.h"
 #include "custom_keycodes.h"
-#include "defines.h"
+#include "features/defines.h"
 #include "game_mode.h"
 #include "rgb_matrix.h"
 #include "eeconfig.h"
@@ -22,6 +22,8 @@ enum {
 #define SLEEP_TWILIGHT_MS   (5UL * 60UL * 1000UL)
 #define SLEEP_NIGHT_MS      (2UL * 60UL * 1000UL)
 #define SLEEP_GAMING_MS     (10UL * 60UL * 1000UL)
+#define EEPROM_DEFER_MS     2500
+#define USB_SUSPEND_RGB_MS  10000
 
 #define SCALE(c, pct) ((uint8_t)(((uint16_t)(c) * (pct)) / 100))
 
@@ -44,6 +46,11 @@ static uint16_t fade_ms     = FADE_CIRC_MS;
 static rgb_t    fade_from   = {255, 255, 255};
 static rgb_t    fade_to     = {255, 255, 255};
 static rgb_t    shown       = {255, 255, 255};
+static bool     eeprom_dirty;
+static uint32_t eeprom_at;
+static bool     usb_down;
+static uint32_t usb_down_at;
+static bool     host_rgb_off;
 
 static rgb_t with_val(rgb_t c) {
     const uint8_t v = rgb_matrix_get_val();
@@ -96,15 +103,35 @@ static uint32_t sleep_ms(void) {
     }
 }
 
-static void write_eeprom(void) {
+static void schedule_eeprom(void) {
+    eeprom_dirty = true;
+    eeprom_at    = timer_read32();
+}
+
+static void flush_eeprom(void) {
+    if (!eeprom_dirty) {
+        return;
+    }
     eeconfig_update_user((uint32_t)profile);
+    eeprom_dirty = false;
+}
+
+static void rgb_hold_black(void) {
+    if (host_rgb_off) {
+        return;
+    }
+    host_rgb_off = true;
+    flush_eeprom();
+    rgb_matrix_set_color_all(0, 0, 0);
+    rgb_matrix_update_pwm_buffers();
+    rgb_matrix_disable_noeeprom();
 }
 
 static void apply_base(rgb_t rgb) {
     shown = rgb;
     rgb_matrix_enable_noeeprom();
-    if (rgb_matrix_get_mode() != RGB_MATRIX_NONE) {
-        rgb_matrix_mode_noeeprom(RGB_MATRIX_NONE);
+    if (rgb_matrix_get_mode() != RGB_MATRIX_SOLID_COLOR) {
+        rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
     }
 }
 
@@ -119,7 +146,7 @@ static void begin_switch(uint8_t next) {
     if (next != LP_GAMING) {
         last_circ = next;
     }
-    write_eeprom();
+    schedule_eeprom();
     fade_to  = profile_paint_rgb(next);
     fade_ms  = (prev == LP_GAMING || next == LP_GAMING) ? FADE_GAME_MS : FADE_CIRC_MS;
     blinking = true;
@@ -170,16 +197,38 @@ void lighting_profile_note_activity(void) {
         apply_base(shown);
         sync_game_features();
     }
+    if (host_rgb_off) {
+        host_rgb_off = false;
+        rgb_matrix_enable_noeeprom();
+        apply_base(shown);
+        sync_game_features();
+    }
 }
 
 bool lighting_profile_is_gaming(void) {
     return profile == LP_GAMING && !fading && !blinking;
 }
 
-void lighting_profile_host_off(void) {}
+void lighting_profile_host_off(void) {
+    /* Linux HID autosuspend fires after ~2s idle. Do not black the strip
+     * immediately — wait USB_SUSPEND_RGB_MS of continuous suspend (lid close /
+     * host sleep). A5 / LED_ENABLE_PIN stays high; cutting it glitches RGB. */
+    if (!usb_down) {
+        usb_down    = true;
+        usb_down_at = timer_read32();
+    }
+}
 
 void lighting_profile_host_on(void) {
     last_input = timer_read32();
+    usb_down   = false;
+    if (host_rgb_off) {
+        host_rgb_off = false;
+        if (!rgb_asleep) {
+            rgb_matrix_enable_noeeprom();
+            apply_base(shown);
+        }
+    }
 }
 
 bool lighting_profile_process(uint16_t keycode, keyrecord_t *record) {
@@ -196,6 +245,14 @@ bool lighting_profile_process(uint16_t keycode, keyrecord_t *record) {
 }
 
 void lighting_profile_task(void) {
+    if (eeprom_dirty && timer_elapsed32(eeprom_at) >= EEPROM_DEFER_MS) {
+        flush_eeprom();
+    }
+
+    if (usb_down && !rgb_asleep && !host_rgb_off && timer_elapsed32(usb_down_at) >= USB_SUSPEND_RGB_MS) {
+        rgb_hold_black();
+    }
+
     if (blinking && timer_elapsed32(blink_at) >= BLINK_MS) {
         blinking = false;
         fading   = true;
@@ -217,15 +274,16 @@ void lighting_profile_task(void) {
         return;
     }
 
-    if (!rgb_asleep && timer_elapsed32(last_input) >= sleep_ms()) {
+    if (!rgb_asleep && !host_rgb_off && timer_elapsed32(last_input) >= sleep_ms()) {
         rgb_asleep = true;
         game_mode_set_active(false);
+        flush_eeprom();
         rgb_matrix_disable_noeeprom();
     }
 }
 
 void lighting_profile_paint(uint8_t led_min, uint8_t led_max) {
-    if (rgb_asleep) {
+    if (rgb_asleep || host_rgb_off) {
         return;
     }
     if (blinking) {

@@ -1,0 +1,45 @@
+name: firmware
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        keyboard:
+          - royal_kludge/r75/customiso
+          - royal_kludge/r75/custom
+          - royal_kludge/r75/ansi
+    steps:
+      - name: Checkout overlay
+        uses: actions/checkout@v4
+        with:
+          path: overlay
+
+      - name: Checkout QMK
+        uses: actions/checkout@v4
+        with:
+          repository: qmk/qmk_firmware
+          path: qmk_firmware
+          submodules: recursive
+
+      - name: Install QMK CLI
+        run: python3 -m pip install --user qmk
+
+      - name: Overlay R75 sources
+        run: |
+          set -e
+          DEST=qmk_firmware/keyboards/royal_kludge/r75
+          mkdir -p "$DEST"
+          rsync -a overlay/source/keyboards/rk/r75/common "$DEST/"
+          rsync -a overlay/source/keyboards/rk/r75/customiso "$DEST/"
+          rsync -a overlay/source/keyboards/rk/r75/custom "$DEST/"
+          rsync -a overlay/source/keyboards/rk/r75/ansi "$DEST/"
+
+      - name: Compile
+        working-directory: qmk_firmware
+        run: qmk compile -kb ${{ matrix.keyboard }} -km via

@@ -9,7 +9,7 @@
 #define WB32_USB_HOST_WAKEUP_DURATION 2
 
 #undef WB32_SERIAL_USE_UART3
-#define WB32_SERIAL_USE_UART3 TRUE
+#define WB32_SERIAL_USE_UART3 FALSE
 
 #undef WB32_SPI_USE_SPIM2
 #define WB32_SPI_USE_SPIM2 TRUE
@@ -24,8 +24,8 @@
 #undef WB32_SPI_QSPI_IRQ_PRIORITY
 #define WB32_SPI_QSPI_IRQ_PRIORITY 10
 
-#undef WB32_SERIAL_UART3_PRIORITY
-#define WB32_SERIAL_UART3_PRIORITY 8
+/* UART3 is unused (CONSOLE_ENABLE=no, wired board). Default HAL priority 8
+ * would pre-empt WS2812 SPI (9). Leave the driver off. */
 
 /* system clock set to 96Mhz */
 #undef WB32_PLLDIV_VALUE

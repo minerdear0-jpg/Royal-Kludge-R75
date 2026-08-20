@@ -39,6 +39,7 @@ enum layer_names {
 #define LED_V 71
 #define LED_UP 63
 #define LED_RSFT 64
+#define LED_SOCD 7 /* Home: always-on smolder while last-win SOCD is armed */
 
 #define GAME_MODE_ROW 3
 #define GAME_MODE_COL 5

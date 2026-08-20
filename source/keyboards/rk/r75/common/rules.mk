@@ -1,0 +1,9 @@
+R75_COMMON := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+VPATH += $(R75_COMMON)
+EXTRACFLAGS += -I$(R75_COMMON)
+CFLAGS += -I$(R75_COMMON)
+SRC += lighting_profile.c
+SRC += game_mode.c
+SRC += socd_cleaner.c
+SRC += indicator_queue.c
+SRC += tap_hold.c

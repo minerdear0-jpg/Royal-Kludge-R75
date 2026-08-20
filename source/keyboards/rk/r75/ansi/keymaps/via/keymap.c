@@ -5,13 +5,13 @@
 #include "quantum.h"
 
 #include "features/defines.h"
-#include "features/custom_keycodes.h"
-#include "features/indicator_queue.h"
-#include "features/tap_hold.h"
+#include "custom_keycodes.h"
+#include "indicator_queue.h"
+#include "tap_hold.h"
 #include "features/indicators.h"
-#include "features/socd_cleaner.h"
-#include "features/game_mode.h"
-#include "features/lighting_profile.h"
+#include "socd_cleaner.h"
+#include "game_mode.h"
+#include "lighting_profile.h"
 
 void keyboard_post_init_user(void) {
     game_mode_init();
@@ -49,15 +49,13 @@ socd_cleaner_t socd_h = {{KC_A, KC_D}, SOCD_CLEANER_LAST};
 
 enum tap_dance_keys {
     TD_RESET,
-    TD_CLEAR,
-    TD_CTL_TG
+    TD_CLEAR
 };
 
 // clang-format off
 tap_dance_action_t tap_dance_actions[] = {
     [TD_RESET]  = ACTION_TAP_DANCE_FN(safe_reset),
-    [TD_CLEAR]  = ACTION_TAP_DANCE_FN(safe_clear),
-    [TD_CTL_TG] = ACTION_TAP_DANCE_LAYER_TOGGLE(KC_RCTL, _CTL_LYR)
+    [TD_CLEAR]  = ACTION_TAP_DANCE_FN(safe_clear)
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -137,10 +135,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     }
 
     switch (keycode) {
-        case GAME_MODE_TOG:
-        case LIGHT_PROFILE_CYC:
-            return false;
-
         case QK_MAGIC_TOGGLE_NKRO:
             if (record->event.pressed) {
                 clear_keyboard();

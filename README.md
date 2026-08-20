@@ -2,7 +2,7 @@
 
 Кастомный QMK для **проводной** RK R75 (MCU WB32FQ95). Подсветка и слои на клавиатуре. [VIA](https://usevia.app/) — только раскладка.
 
-**Нет OpenRGB и SignalRGB.** Старые `.hex` с ними в `firmware/` — архив, их не ставить.
+**Нет OpenRGB и SignalRGB.** Архив старых `.hex` и плагинов — [`firmware/archive/`](firmware/archive/). Не прошивать.
 
 Беспроводная R75 этим репозиторием не поддерживается.
 
@@ -72,17 +72,18 @@ QMK Toolbox или `wb32-dfu-updater_cli` с GitHub. Разреши доступ
 | Громкость | Энкодер |
 | Яркость экрана | **Fn + энкодер** (`XF86MonBrightness*` — ноутбук/встроенный экран; внешний монитор часто нет, там `ddcutil`) |
 | Перемотка | **Fn + Right Shift + энкодер** |
-| Game Mode | Четвёртый пресет **Fn+<>** (ISO) / **Fn+\\** (ANSI), либо **Fn+G**. Карта зон в `features/game_lighting.h` |
-| Пресеты света | **Fn+<>** (ISO, солнышко) цикл: день → сумерки → ночь → гейминг. ANSI: **Fn+\\**. Пишется в EEPROM |
-| RGB | **Fn+↑/↓** яркость профилей (то же — слайдер Brightness в VIA). Цвет и анимации — только C-слой |
+| Game Mode | Пресет гейминг: **Fn+<>** (ISO) / **Fn+\\** (ANSI), либо **Fn+G**. Зоны в `features/game_lighting.h`. Включает Win-lock и NKRO, **не** SOCD |
+| Пресеты света | Тот же цикл: день → сумерки → ночь → гейминг. Профиль пишется в EEPROM спустя ~2.5 с, не на каждый тап |
+| RGB | **Fn+↑/↓** яркость. Цвет — только C-слой |
+| SOCD last-win | **Fn+Right Shift, T**. Пока включён — тлеет **Home**. Valorant: Snap Tap, бан. С Game Mode сам не включается |
 | Bootloader | **Fn + Esc**. Или USB выдернуть, держать **Esc**, воткнуть. Или Reset на днище. Options: трижды **Q** |
 | Сброс EEPROM | **Fn**, три раза **Space** (или Options: трижды **Z**) |
 
 **Пресеты (C-слой):** день белый 100% / сумерки янтарь 50% / ночь зелёный 15% / гейминг (blackout + зоны). Смена — вспышка целевым цветом, затем fade 3 с (в гейминг 0.5 с). Sleep: 10 / 5 / 2 / 10 мин. Профиль в EEPROM.
 
-**Гейминг:** WASD+QEFG+стрелки лимон 40%, 1–6 фиолетовый 40%, Ctrl/Shift/Space бирюза 30%, ZXCV лёд 30%, B и правый блок выключены. Вспышка 150 мс. Win-lock и SOCD включаются вместе с этим пресетом. SOCD в Valorant — Snap Tap, бан.
+**Гейминг:** WASD+QEFG+стрелки лимон 40%, 1–6 фиолетовый 40%, Ctrl/Shift/Space бирюза 30%, ZXCV лёд 30%, B и правый блок выключены. Вспышка 150 мс. Win-lock и NKRO включаются с этим пресетом. SOCD — отдельно, Options **T**.
 
-**Вход в DFU не завязан на VIA:** Bootmagic — матрица Esc при подключении кабеля. **Fn+Esc** — `QK_BOOT` из прошивки. Reset на днище — железный загрузчик.
+USB suspend (крышка ноута / сон хоста): лента гасится после **10 с** непрерывного suspend. Короткий Linux autosuspend (~2 с) подсветку не трогает. Пин A5 драйвера LED не опускаем — из-за этого раньше ломались RGB и Game Mode. `RGB_DISABLE_WHEN_USB_SUSPENDED` специально не включён.
 
 **Options** (удерживай **Fn + Right Shift**): F1 = Linux/Win слой, F2 = Mac, F3 = numpad, **T** = SOCD, **N** = NKRO, **/** = Game Mode.
 
@@ -90,14 +91,34 @@ QMK Toolbox или `wb32-dfu-updater_cli` с GitHub. Разреши доступ
 
 USB 1000 Гц (`polling_interval` 1 мс), debounce 5 мс.
 
+**Вход в DFU не завязан на VIA:** Bootmagic — матрица Esc при подключении кабеля. **Fn+Esc** — `QK_BOOT` из прошивки. Reset на днище — железный загрузчик.
+
 ## Сборка
 
-Официальный [QMK](https://docs.qmk.fm/), fork с OpenRGB не нужен. Скопируй `source/keyboards/rk/r75/{customiso,custom,ansi}` → `qmk_firmware/keyboards/royal_kludge/r75/`.
+Исходники платы: `source/keyboards/rk/r75/{common,customiso,custom,ansi}`. Общая логика (профили, Game Mode, SOCD) — в `common/`, раскладки не копируют эти `.c`. Полного QMK в репозитории нет. `iso/` нет: это был шаблон RK851.
+
+В **своём** дереве [qmk_firmware](https://docs.qmk.fm/) положи их так, чтобы цель компиляции совпала с папкой:
 
 ```shell
+rsync -a source/keyboards/rk/r75/common/     ~/qmk_firmware/keyboards/royal_kludge/r75/common/
+rsync -a source/keyboards/rk/r75/customiso/ ~/qmk_firmware/keyboards/royal_kludge/r75/customiso/
+rsync -a source/keyboards/rk/r75/custom/    ~/qmk_firmware/keyboards/royal_kludge/r75/custom/
+rsync -a source/keyboards/rk/r75/ansi/      ~/qmk_firmware/keyboards/royal_kludge/r75/ansi/
+
 qmk compile -kb royal_kludge/r75/customiso -km via
 qmk compile -kb royal_kludge/r75/custom -km via
+qmk compile -kb royal_kludge/r75/ansi -km via
 ```
+
+Путь `royal_kludge/r75` — это имя каталога **после копирования**, не поле `"manufacturer": "RK"` в `keyboard.json`. Собирать как `rk/r75/customiso` можно, только если скопировал в `keyboards/rk/r75/`. Fork QMK с OpenRGB не нужен.
+
+Компилятор — дефолт QMK (`-Os` + LTO). `OPT_LEVEL=3` не ставим: для этой платы важнее размер, чем мифические 15% с `-O3`. NKRO включён (`force_nkro` + Game Mode), это не «выключен ради скорости».
+
+## Релиз и ревью
+
+Готовые `.hex`/`.bin` — в [`firmware/`](firmware/). Архив OpenRGB/SignalRGB — [`firmware/archive/`](firmware/archive/).
+
+**Аудитор и чужие PR.** Можно предлагать патчи. Зелёный CI (`.github/workflows/firmware.yml`) не равен мержу. Владелец смотрит дифф (HID, RGB, SOCD, EEPROM) и говорит, что входит в релиз. Автомерж и «починить заодно» без согласования не используются. `CODEOWNERS` — `@minerdear0-jpg`.
 
 ## Credits
 

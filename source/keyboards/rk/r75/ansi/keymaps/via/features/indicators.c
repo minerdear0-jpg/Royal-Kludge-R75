@@ -8,6 +8,7 @@
 #include "indicator_queue.h"
 #include "game_mode.h"
 #include "lighting_profile.h"
+#include "socd_cleaner.h"
 
 // clang-format off
 /*  LED Matrix ANSI
@@ -119,6 +120,12 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
             RGB_MATRIX_INDICATOR_SET_COLOR(numpad[i], 0x00, 0xFF, 0x00);
         }
         RGB_MATRIX_INDICATOR_SET_COLOR(20, 0x7A, 0x00, 0xFF);
+    }
+
+    if (socd_cleaner_enabled) {
+        const uint8_t r = lighting_profile_scale_u8(0x50);
+        const uint8_t g = lighting_profile_scale_u8(0x18);
+        RGB_MATRIX_INDICATOR_SET_COLOR(LED_SOCD, r, g, 0);
     }
 
     return true;

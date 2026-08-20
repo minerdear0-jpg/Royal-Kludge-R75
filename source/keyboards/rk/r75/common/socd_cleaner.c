@@ -38,16 +38,16 @@ static void update_key(uint8_t keycode, bool press) {
 
 bool process_socd_cleaner(uint16_t keycode, keyrecord_t* record,
                           socd_cleaner_t* state) {
-  if (!socd_cleaner_enabled || !state->resolution ||
-      (keycode != state->keys[0] && keycode != state->keys[1])) {
-    return true;  // Quick return when disabled or on unrelated events.
+  if (keycode != state->keys[0] && keycode != state->keys[1]) {
+    return true;
   }
-  // The current event corresponds to index `i`, 0 or 1, in the SOCD key pair.
+  /* Always track physical holds so enable/disable mid-key cannot ghost held[]. */
   const uint8_t i = (keycode == state->keys[1]);
-  const uint8_t opposing = i ^ 1;  // Index of the opposing key.
-
-  // Track which keys are physically held (vs. keys in the report).
   state->held[i] = record->event.pressed;
+  if (!socd_cleaner_enabled || !state->resolution) {
+    return true;
+  }
+  const uint8_t opposing = i ^ 1;
 
   // Perform SOCD resolution for events where the opposing key is held.
   if (state->held[opposing]) {

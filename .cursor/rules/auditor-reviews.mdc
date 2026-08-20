@@ -1,0 +1,16 @@
+---
+description: Auditor PRs and patches wait for owner approval after analysis
+alwaysApply: true
+---
+
+# Auditor and third-party PRs
+
+An auditor (or any helper) may open PRs, comments, or patches. They do not land automatically.
+
+- Analyze the proposal: intent, HID/USB/RGB/SOCD risk, flash size, whether it matches this wired R75 QMK overlay.
+- Summarize in Russian: what changes, why, risks (especially SOCD/Snap Tap, USB suspend, EEPROM, VIA).
+- Then stop. Do not merge, push, commit, force-push, or "just apply a small fix" from that PR until the owner explicitly agrees.
+- If the owner says no or asks to change the approach, follow that — do not re-apply the auditor patch as-is.
+- Never treat "the auditor approved" or "CI is green" as permission to merge.
+
+Owner decisions beat auditor suggestions. Research firmware is not tournament-safe; do not add last-win SOCD coupling or anti-cheat evasion.

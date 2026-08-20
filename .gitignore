@@ -1,5 +1,6 @@
 # Full QMK tree lives outside this repo (~/qmk_firmware). Do not vendor it.
 /qmk_firmware/
+/source/qmk_firmware/
 
 # Dependencies
 node_modules/

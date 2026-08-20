@@ -2,9 +2,9 @@
 #include "socd_cleaner.h"
 #include "lighting_profile.h"
 #include "rgb_matrix.h"
-#include "defines.h"
+#include "features/defines.h"
 #include "custom_keycodes.h"
-#include "game_lighting.h"
+#include "features/game_lighting.h"
 
 static bool game_mode_enabled = false;
 static bool saved_no_gui      = false;
@@ -48,7 +48,6 @@ void game_mode_set_active(bool on) {
     }
     game_mode_enabled = on;
     if (on) {
-        socd_cleaner_enabled = true;
         saved_no_gui         = keymap_config.no_gui;
         keymap_config.no_gui = true;
         if (!keymap_config.nkro) {
@@ -56,7 +55,6 @@ void game_mode_set_active(bool on) {
             keymap_config.nkro = true;
         }
     } else {
-        socd_cleaner_enabled = false;
         keymap_config.no_gui = saved_no_gui;
     }
 }
@@ -93,7 +91,7 @@ void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
     paint_list(led_min, led_max, gm_mods, (uint8_t)(sizeof(gm_mods) / sizeof(gm_mods[0])), lighting_profile_scale_u8(GM_MOD_R), lighting_profile_scale_u8(GM_MOD_G), lighting_profile_scale_u8(GM_MOD_B));
     paint_list(led_min, led_max, gm_tactic, (uint8_t)(sizeof(gm_tactic) / sizeof(gm_tactic[0])), lighting_profile_scale_u8(GM_TAC_R), lighting_profile_scale_u8(GM_TAC_G), lighting_profile_scale_u8(GM_TAC_B));
 
-#ifdef RGB_MATRIX_KEYREACTIVE_ENABLED
+#ifdef RGB_MATRIX_KEYPRESSES
     for (uint8_t j = 0; j < g_last_hit_tracker.count; j++) {
         const uint16_t tick = g_last_hit_tracker.tick[j];
         const uint8_t  idx  = g_last_hit_tracker.index[j];

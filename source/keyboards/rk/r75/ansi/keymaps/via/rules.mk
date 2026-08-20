@@ -6,9 +6,6 @@ DEBOUNCE_TYPE = asym_eager_defer_pk
 MOUSEKEY_ENABLE = no
 CONSOLE_ENABLE = no
 COMMAND_ENABLE = no
-SRC += features/indicator_queue.c
-SRC += features/tap_hold.c
+
+include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../../common/rules.mk)
 SRC += features/indicators.c
-SRC += features/socd_cleaner.c
-SRC += features/game_mode.c
-SRC += features/lighting_profile.c

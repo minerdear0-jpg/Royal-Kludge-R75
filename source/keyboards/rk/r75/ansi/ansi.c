@@ -18,6 +18,8 @@ void keyboard_pre_init_kb(void) {
 }
 
 void suspend_power_down_kb(void) {
+    /* Keep the LED driver powered. Pulling A5 low on USB suspend glitches
+     * WS2812 and was mistaken for "host off". RGB blackout is in lighting_profile. */
     gpio_write_pin_high(LED_ENABLE_PIN);
     suspend_power_down_user();
 }

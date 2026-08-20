@@ -1,5 +1,7 @@
 #include "indicator_queue.h"
 
+static uint8_t indicator_live;
+
 rgb_led_t get_complementary_color(rgb_led_t rgb_led, bool darken) {
     uint8_t new_r = 0xFF - rgb_led.r;
     uint8_t new_g = 0xFF - rgb_led.g;
@@ -16,7 +18,7 @@ rgb_led_t get_complementary_color(rgb_led_t rgb_led, bool darken) {
 }
 
 void indicator_enqueue(uint8_t led_index, uint32_t interval, uint8_t times_to_flash, uint8_t r, uint8_t g, uint8_t b) {
-    for (int i = 0; i < INDICATOR_QUEUE_MAX; i++) {
+    for (uint8_t i = 0; i < INDICATOR_QUEUE_MAX; i++) {
         if (!indicator_queue[i].active) {
             // this queue position is not active, so we can use it
             indicator_queue[i].active         = true;
@@ -27,13 +29,17 @@ void indicator_enqueue(uint8_t led_index, uint32_t interval, uint8_t times_to_fl
             indicator_queue[i].r              = r;
             indicator_queue[i].g              = g;
             indicator_queue[i].b              = b;
+            indicator_live++;
             break;
         }
     }
 }
 
 void process_indicator_queue(uint8_t led_min, uint8_t led_max) {
-    for (int i = 0; i < INDICATOR_QUEUE_MAX; i++) {
+    if (!indicator_live) {
+        return;
+    }
+    for (uint8_t i = 0; i < INDICATOR_QUEUE_MAX; i++) {
         if (indicator_queue[i].active) {
             // this queue position is active, process it
             if (timer_elapsed32(indicator_queue[i].last_update) >= indicator_queue[i].interval) {
@@ -50,6 +56,10 @@ void process_indicator_queue(uint8_t led_min, uint8_t led_max) {
                     // clear this queue spot
                     indicator_queue[i].active      = false;
                     indicator_queue[i].last_update = 0x00;
+                    if (indicator_live) {
+                        indicator_live--;
+                    }
+                    continue;
                 }
             }
 

@@ -19,11 +19,11 @@
 #define TAP_CODE_DELAY 10
 #define ENCODER_MAP_KEY_DELAY 10
 
-/* C-layer paints every frame. SOLID_COLOR is the only compiled QMK effect
- * (init/VIA fallback). KEYPRESSES feeds Game Mode reactive flashes. */
+/* C-layer paints from indicators. SOLID_COLOR keeps the RGB task running
+ * (mode 0 / NONE never calls indicators). KEYPRESSES feeds Game Mode flashes. */
 #define RGB_MATRIX_KEYPRESSES
 #define RGB_TRIGGER_ON_KEYDOWN
-#define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_NONE
+#define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_SOLID_COLOR
 #define RGB_MATRIX_DEFAULT_HUE 166
 #define RGB_MATRIX_DEFAULT_SAT 255
 #define RGB_MATRIX_DEFAULT_VAL 128
