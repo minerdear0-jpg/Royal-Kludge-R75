@@ -16,4 +16,8 @@ void lighting_profile_host_on(void);
 bool lighting_profile_is_gaming(void);
 bool lighting_profile_is_nightlight(void);
 bool lighting_profile_encoder(bool clockwise);
+void lighting_profile_wipe_then_reset(void);
+void lighting_profile_enter_bootloader(void);
+bool lighting_profile_wipe_busy(void);
+void lighting_profile_contrast_rgb(uint8_t *r, uint8_t *g, uint8_t *b);
 bool lighting_profile_process(uint16_t keycode, keyrecord_t *record);

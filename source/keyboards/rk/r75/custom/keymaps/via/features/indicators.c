@@ -89,6 +89,11 @@ static void fn_hint(uint8_t led_min, uint8_t led_max, const uint8_t *ids, uint8_
 }
 
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    if (lighting_profile_wipe_busy()) {
+        lighting_profile_paint(led_min, led_max);
+        return true;
+    }
+
     process_indicator_queue(led_min, led_max);
     lighting_profile_paint(led_min, led_max);
 
@@ -99,7 +104,9 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         const uint8_t bright[] = {63, 3};
         fn_hint(led_min, led_max, bright, 2, 0xFF, 0xFF, 0xFF);
 
-        RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, 0xFF, 0x00, 0x00);
+        uint8_t gr, gg, gb;
+        lighting_profile_contrast_rgb(&gr, &gg, &gb);
+        RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, gr, gg, gb);
         RGB_MATRIX_INDICATOR_SET_COLOR(64, 0xFF, 0x00, 0x00);
         RGB_MATRIX_INDICATOR_SET_COLOR(LED_SPACE, 0x7A, 0x00, 0xFF);
         RGB_MATRIX_INDICATOR_SET_COLOR(21, 0xFF, 0x40, 0x00); /* Esc bootloader */

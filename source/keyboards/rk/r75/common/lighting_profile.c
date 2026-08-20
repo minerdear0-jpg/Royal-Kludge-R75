@@ -27,8 +27,19 @@ enum {
 #define SLEEP_GAMING_MS     (10UL * 60UL * 1000UL)
 #define EEPROM_DEFER_MS     2500
 #define USB_SUSPEND_RGB_MS  10000
+#define WIPE_MS             650
+#define WIPE_BAND           18
+#ifndef CAPS_LOCK_LED_PIN
+#    define CAPS_LOCK_LED_PIN C4
+#endif
+#define HB_LED              21
+#define TX_ON_MS            45
+#define TX_PERIOD_MS        180
+#define HB_JUMP_MS          2500
 #define DEFAULT_VAL         128
+#define DEFAULT_NL_VAL      64
 #define STORE_MARK          0x80000000UL
+#define STORE_V2            0x40000000UL
 
 #define SCALE(c, pct) ((uint8_t)(((uint16_t)(c) * (pct)) / 100))
 
@@ -40,9 +51,12 @@ static const rgb_t k_rgb[LP_COUNT] = {
     {SCALE(215, 40), SCALE(255, 40), SCALE(0, 40)},
 };
 
+static const rgb_t k_nl = {SCALE(255, 22), SCALE(8, 22), 0};
+
 static uint8_t  profile     = LP_DAY;
 static uint8_t  last_circ   = LP_DAY;
 static uint8_t  vals[LP_COUNT];
+static uint8_t  nl_val      = DEFAULT_NL_VAL;
 static uint8_t  nl_level;
 static bool     nl_run;
 static bool     nl_usb;
@@ -71,20 +85,27 @@ static bool     courtesy_lamp;
 static uint8_t  courtesy_from = 255;
 static uint8_t  courtesy_to   = 255;
 static uint32_t courtesy_at;
+static bool     wipe;
+static uint32_t wipe_at;
+static bool     hb;
+static uint32_t hb_at;
 
-static uint8_t pack_val(uint8_t v) {
-    return (uint8_t)(v >> 3);
+static void abort_bootloader_wait(void);
+
+static uint8_t pack_val4(uint8_t v) {
+    return (uint8_t)(v >> 4);
 }
 
-static uint8_t unpack_val(uint8_t p) {
-    return (uint8_t)(p << 3);
+static uint8_t unpack_val4(uint8_t p) {
+    return (uint8_t)(p << 4);
 }
 
 static uint32_t pack_store(void) {
     uint8_t  i;
-    uint32_t raw = STORE_MARK | (uint32_t)(profile & 7);
+    uint32_t raw = STORE_MARK | STORE_V2 | (uint32_t)(profile & 7);
+    raw |= ((uint32_t)pack_val4(nl_val) << 3);
     for (i = 0; i < LP_COUNT; i++) {
-        raw |= ((uint32_t)pack_val(vals[i]) << (3 + (i * 5)));
+        raw |= ((uint32_t)pack_val4(vals[i]) << (7 + (i * 4)));
     }
     return raw;
 }
@@ -94,43 +115,50 @@ static void default_vals(void) {
     for (i = 0; i < LP_COUNT; i++) {
         vals[i] = DEFAULT_VAL;
     }
+    nl_val = DEFAULT_NL_VAL;
 }
 
 static void unpack_store(uint32_t raw) {
     uint8_t i;
+    if ((raw & STORE_MARK) && (raw & STORE_V2)) {
+        profile = (uint8_t)(raw & 7);
+        if (profile >= LP_COUNT) {
+            profile = LP_DAY;
+        }
+        nl_val = unpack_val4((uint8_t)((raw >> 3) & 0x0F));
+        for (i = 0; i < LP_COUNT; i++) {
+            vals[i] = unpack_val4((uint8_t)((raw >> (7 + (i * 4))) & 0x0F));
+        }
+        return;
+    }
+    default_vals();
     if (raw & STORE_MARK) {
         profile = (uint8_t)(raw & 7);
         if (profile >= LP_COUNT) {
             profile = LP_DAY;
         }
         for (i = 0; i < LP_COUNT; i++) {
-            vals[i] = unpack_val((uint8_t)((raw >> (3 + (i * 5))) & 0x1F));
+            vals[i] = (uint8_t)(((raw >> (3 + (i * 5))) & 0x1F) << 3);
         }
         return;
     }
-    default_vals();
     if (raw < 4) {
         profile = (uint8_t)raw;
         return;
     }
-    /* Previous 4-slot pack: day / twilight / night / gaming. */
     {
         const uint8_t mapped[4] = {LP_DAY, LP_TWILIGHT, LP_GREEN, LP_GAMING};
-        profile  = mapped[raw & 3];
-        vals[0]  = (uint8_t)(((raw >> 3) & 0x7F) << 1);
-        vals[1]  = (uint8_t)(((raw >> 10) & 0x7F) << 1);
-        vals[2]  = (uint8_t)(((raw >> 17) & 0x7F) << 1);
-        vals[4]  = (uint8_t)(((raw >> 24) & 0x7F) << 1);
-        vals[3]  = DEFAULT_VAL;
+        profile = mapped[raw & 3];
+        vals[0] = (uint8_t)(((raw >> 3) & 0x7F) << 1);
+        vals[1] = (uint8_t)(((raw >> 10) & 0x7F) << 1);
+        vals[2] = (uint8_t)(((raw >> 17) & 0x7F) << 1);
+        vals[4] = (uint8_t)(((raw >> 24) & 0x7F) << 1);
+        vals[3] = DEFAULT_VAL;
     }
 }
 
 static void apply_val(uint8_t v) {
     rgb_matrix_sethsv_noeeprom(rgb_matrix_get_hue(), rgb_matrix_get_sat(), v);
-}
-
-static uint8_t val_slot(void) {
-    return (nl_usb || nl_level == 255) ? LP_GREEN : profile;
 }
 
 static uint8_t scale_chan(uint8_t c) {
@@ -284,14 +312,16 @@ static void begin_nl(uint8_t to, bool usb) {
     snap_courtesy_on();
     rgb_matrix_enable_noeeprom();
     if (to == 255) {
-        apply_val(vals[LP_GREEN]);
+        apply_val(nl_val);
     }
     apply_base(shown);
 }
 
 static void begin_switch(uint8_t next) {
     const uint8_t prev = profile;
-    vals[val_slot()]   = rgb_matrix_get_val();
+    if (!in_nightlight()) {
+        vals[profile] = rgb_matrix_get_val();
+    }
     snap_courtesy_on();
     fade_from          = shown;
     profile            = next;
@@ -393,23 +423,68 @@ bool lighting_profile_is_nightlight(void) {
 }
 
 bool lighting_profile_encoder(bool clockwise) {
+    if (hb) {
+        abort_bootloader_wait();
+        return false;
+    }
     if (!in_nightlight()) {
         return true;
     }
-    uint8_t v = vals[LP_GREEN];
+    uint8_t v = nl_val;
     if (clockwise) {
         v = (v > (uint8_t)(255 - RGB_MATRIX_VAL_STEP)) ? 255 : (uint8_t)(v + RGB_MATRIX_VAL_STEP);
     } else {
         v = (v < RGB_MATRIX_VAL_STEP) ? 0 : (uint8_t)(v - RGB_MATRIX_VAL_STEP);
     }
-    vals[LP_GREEN] = v;
+    nl_val = v;
     apply_val(v);
     schedule_eeprom();
     last_input = timer_read32();
     return false;
 }
 
+static bool tx_lit(uint32_t elapsed) {
+    return (elapsed % TX_PERIOD_MS) < TX_ON_MS;
+}
+
+static void tx_caps(bool on) {
+#ifdef CAPS_LOCK_LED_PIN
+    gpio_write_pin(CAPS_LOCK_LED_PIN, on ? LED_PIN_ON_STATE : (LED_PIN_ON_STATE ? 0 : 1));
+#endif
+}
+
+static void abort_bootloader_wait(void) {
+    hb = false;
+    tx_caps(false);
+#ifdef CAPS_LOCK_LED_PIN
+    led_update_ports(host_keyboard_led_state());
+#endif
+}
+
+static void paint_esc_tx(uint8_t led_min, uint8_t led_max, bool on) {
+    tx_caps(on);
+    for (uint8_t i = led_min; i < led_max; i++) {
+        if (on && i == HB_LED) {
+            rgb_matrix_set_color(i, 0xFF, 0x90, 0x00);
+        } else {
+            rgb_matrix_set_color(i, 0, 0, 0);
+        }
+    }
+}
+
 bool lighting_profile_process(uint16_t keycode, keyrecord_t *record) {
+    if (hb) {
+        if (record->event.pressed && keycode != QK_BOOTLOADER) {
+            abort_bootloader_wait();
+        }
+        return false;
+    }
+    if (keycode == QK_BOOTLOADER) {
+        if (record->event.pressed) {
+            lighting_profile_enter_bootloader();
+        }
+        return false;
+    }
     if (keycode == KC_MUTE && in_nightlight()) {
         if (record->event.pressed) {
             lamp_click();
@@ -428,16 +503,89 @@ bool lighting_profile_process(uint16_t keycode, keyrecord_t *record) {
     return false;
 }
 
+void lighting_profile_wipe_then_reset(void) {
+    if (hb) {
+        return;
+    }
+    wipe    = true;
+    wipe_at = timer_read32();
+    rgb_matrix_enable_noeeprom();
+}
+
+void lighting_profile_enter_bootloader(void) {
+    if (wipe) {
+        return;
+    }
+    hb    = true;
+    hb_at = timer_read32();
+    rgb_matrix_enable_noeeprom();
+}
+
+bool lighting_profile_wipe_busy(void) {
+    return wipe || hb;
+}
+
+void lighting_profile_contrast_rgb(uint8_t *r, uint8_t *g, uint8_t *b) {
+    rgb_t c;
+    if (nl_level) {
+        c = k_nl;
+    } else if (profile == LP_GAMING) {
+        c = (rgb_t){0, 0, 0};
+    } else {
+        c = k_rgb[profile];
+    }
+    uint8_t        cr = (uint8_t)(255 - c.r);
+    uint8_t        cg = (uint8_t)(255 - c.g);
+    uint8_t        cb = (uint8_t)(255 - c.b);
+    const uint16_t y  = (uint16_t)(c.r * 3u + c.g * 6u + c.b) / 10u;
+    const uint16_t yc = (uint16_t)(cr * 3u + cg * 6u + cb) / 10u;
+    int16_t        d  = (int16_t)y - (int16_t)yc;
+    if (d < 0) {
+        d = (int16_t)(-d);
+    }
+    if (d < 80) {
+        if (y >= 128) {
+            cr = 0;
+            cg = 0;
+            cb = 0;
+        } else {
+            cr = 255;
+            cg = 255;
+            cb = 255;
+        }
+    }
+    *r = cr;
+    *g = cg;
+    *b = cb;
+}
+
 void lighting_profile_task(void) {
+    if (hb) {
+        if (timer_elapsed32(hb_at) >= HB_JUMP_MS) {
+            reset_keyboard();
+        }
+        return;
+    }
+    if (wipe) {
+        if (timer_elapsed32(wipe_at) >= (WIPE_MS + 80)) {
+            eeconfig_init();
+            soft_reset_keyboard();
+        }
+        return;
+    }
     if (eeprom_dirty && timer_elapsed32(eeprom_at) >= EEPROM_DEFER_MS) {
         flush_eeprom();
     }
 
     if (!nl_run && !courtesy_run && !fading && !blinking && !rgb_asleep) {
-        const uint8_t slot = val_slot();
-        const uint8_t v    = rgb_matrix_get_val();
-        if (vals[slot] != v) {
-            vals[slot] = v;
+        const uint8_t v = rgb_matrix_get_val();
+        if (in_nightlight()) {
+            if (nl_val != v) {
+                nl_val = v;
+                schedule_eeprom();
+            }
+        } else if (vals[profile] != v) {
+            vals[profile] = v;
             schedule_eeprom();
         }
     }
@@ -520,12 +668,29 @@ void lighting_profile_task(void) {
 }
 
 void lighting_profile_paint(uint8_t led_min, uint8_t led_max) {
+    if (hb) {
+        paint_esc_tx(led_min, led_max, tx_lit(timer_elapsed32(hb_at)));
+        return;
+    }
+    if (wipe) {
+        const uint32_t elapsed = timer_elapsed32(wipe_at);
+        const uint32_t pos     = (elapsed >= WIPE_MS) ? 224u : (elapsed * 224u / WIPE_MS);
+        for (uint8_t i = led_min; i < led_max; i++) {
+            const uint16_t x = g_led_config.point[i].x;
+            if ((uint32_t)x + WIPE_BAND > pos && (uint32_t)x < pos + WIPE_BAND) {
+                rgb_matrix_set_color(i, 0xE8, 0xF4, 0xFF);
+            } else {
+                rgb_matrix_set_color(i, 0, 0, 0);
+            }
+        }
+        return;
+    }
     if (rgb_asleep || host_rgb_off) {
         return;
     }
     if (nl_level) {
         const rgb_t base = (blinking || fading) ? shown : profile_paint_rgb(profile);
-        fill_range(led_min, led_max, lerp_rgb(base, k_rgb[LP_GREEN], nl_level, 255));
+        fill_range(led_min, led_max, lerp_rgb(base, k_nl, nl_level, 255));
         return;
     }
     if (blinking) {

@@ -126,10 +126,10 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (!game_mode_process(keycode, record)) {
+    if (!lighting_profile_process(keycode, record)) {
         return false;
     }
-    if (!lighting_profile_process(keycode, record)) {
+    if (!game_mode_process(keycode, record)) {
         return false;
     }
     if (record->event.pressed) {
