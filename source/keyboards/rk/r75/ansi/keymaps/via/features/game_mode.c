@@ -3,13 +3,11 @@
 #include "lighting_profile.h"
 #include "rgb_matrix.h"
 #include "defines.h"
+#include "custom_keycodes.h"
+#include "game_lighting.h"
 
-#define LED_UP 63
-
-static bool    game_mode_enabled = false;
-static uint8_t saved_rgb_mode    = RGB_MATRIX_SOLID_COLOR;
-static hsv_t saved_hsv = {0, 0, 128};
-static bool    saved_no_gui      = false;
+static bool game_mode_enabled = false;
+static bool saved_no_gui      = false;
 
 static void paint(uint8_t led_min, uint8_t led_max, uint8_t idx, uint8_t r, uint8_t g, uint8_t b) {
     if (idx >= led_min && idx < led_max) {
@@ -23,83 +21,87 @@ static void paint_list(uint8_t led_min, uint8_t led_max, const uint8_t *ids, uin
     }
 }
 
+static bool in_list(uint8_t idx, const uint8_t *ids, uint8_t n) {
+    for (uint8_t i = 0; i < n; i++) {
+        if (ids[i] == idx) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool is_game_led(uint8_t idx) {
+    return in_list(idx, gm_move, (uint8_t)(sizeof(gm_move) / sizeof(gm_move[0]))) ||
+           in_list(idx, gm_nums, (uint8_t)(sizeof(gm_nums) / sizeof(gm_nums[0]))) ||
+           in_list(idx, gm_mods, (uint8_t)(sizeof(gm_mods) / sizeof(gm_mods[0]))) ||
+           in_list(idx, gm_tactic, (uint8_t)(sizeof(gm_tactic) / sizeof(gm_tactic[0])));
+}
+
 void game_mode_init(void) {
     game_mode_enabled    = false;
     socd_cleaner_enabled = false;
 }
 
-static void game_mode_enable(void) {
-    game_mode_enabled    = true;
-    socd_cleaner_enabled = true;
-    saved_rgb_mode       = rgb_matrix_get_mode();
-    saved_hsv            = rgb_matrix_get_hsv();
-    saved_no_gui         = keymap_config.no_gui;
-    keymap_config.no_gui = true;
-    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
-
-    if (!keymap_config.nkro) {
-        clear_keyboard();
-        keymap_config.nkro = true;
+void game_mode_set_active(bool on) {
+    if (on == game_mode_enabled) {
+        return;
     }
-    lighting_profile_game_enter();
-}
-
-static void game_mode_disable(void) {
-    game_mode_enabled    = false;
-    socd_cleaner_enabled = false;
-    keymap_config.no_gui = saved_no_gui;
-    if (lighting_profile_user_selected()) {
-        lighting_profile_on_game_exit();
+    game_mode_enabled = on;
+    if (on) {
+        socd_cleaner_enabled = true;
+        saved_no_gui         = keymap_config.no_gui;
+        keymap_config.no_gui = true;
+        if (!keymap_config.nkro) {
+            clear_keyboard();
+            keymap_config.nkro = true;
+        }
     } else {
-        rgb_matrix_mode_noeeprom(saved_rgb_mode);
-        rgb_matrix_sethsv_noeeprom(saved_hsv.h, saved_hsv.s, saved_hsv.v);
+        socd_cleaner_enabled = false;
+        keymap_config.no_gui = saved_no_gui;
     }
 }
 
 bool game_mode_toggle(void) {
-    if (game_mode_enabled) {
-        game_mode_disable();
-    } else {
-        game_mode_enable();
-    }
-    return game_mode_enabled;
+    lighting_profile_toggle_gaming();
+    return game_mode_is_active();
 }
 
 bool game_mode_is_active(void) {
     return game_mode_enabled;
 }
 
-void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
-    if (!game_mode_enabled) {
-        return;
+bool game_mode_process(uint16_t keycode, keyrecord_t *record) {
+    const bool hit = (keycode == GAME_MODE_TOG) ||
+                     (IS_LAYER_ON(_WIN_FN_LYR) && record->event.key.row == GAME_MODE_ROW &&
+                      record->event.key.col == GAME_MODE_COL);
+    if (!hit) {
+        return true;
     }
+    if (record->event.pressed) {
+        lighting_profile_toggle_gaming();
+    }
+    return false;
+}
 
+void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
     for (uint8_t i = led_min; i < led_max; i++) {
         rgb_matrix_set_color(i, 0, 0, 0);
     }
 
-    const uint8_t wasd[] = {GAME_MODE_LED_W, GAME_MODE_LED_S, GAME_MODE_LED_A, GAME_MODE_LED_D};
-    paint_list(led_min, led_max, wasd, 4, 0xC8, 0xFF, 0x00);
-
-    const uint8_t arrows[] = {LED_LEFT, LED_DOWN, LED_UP, LED_RIGHT};
-    paint_list(led_min, led_max, arrows, 4, 0xC8, 0xFF, 0x00);
-
-    const uint8_t slots[] = {23, 24, 25, 26, 27};
-    paint_list(led_min, led_max, slots, 5, 0xA0, 0x00, 0xFF);
-
-    paint(led_min, led_max, 28, 0x00, 0xC8, 0xC8); /* 6 */
-
-    const uint8_t mods[] = {LED_LSFT, LED_LCTL, LED_LGUI, LED_LALT, LED_SPACE, 64};
-    paint_list(led_min, led_max, mods, 6, 0x00, 0xC8, 0xC8);
+    paint_list(led_min, led_max, gm_move, (uint8_t)(sizeof(gm_move) / sizeof(gm_move[0])), GM_MOVE_R, GM_MOVE_G, GM_MOVE_B);
+    paint_list(led_min, led_max, gm_nums, (uint8_t)(sizeof(gm_nums) / sizeof(gm_nums[0])), GM_NUM_R, GM_NUM_G, GM_NUM_B);
+    paint_list(led_min, led_max, gm_mods, (uint8_t)(sizeof(gm_mods) / sizeof(gm_mods[0])), GM_MOD_R, GM_MOD_G, GM_MOD_B);
+    paint_list(led_min, led_max, gm_tactic, (uint8_t)(sizeof(gm_tactic) / sizeof(gm_tactic[0])), GM_TAC_R, GM_TAC_G, GM_TAC_B);
 
 #ifdef RGB_MATRIX_KEYREACTIVE_ENABLED
     for (uint8_t j = 0; j < g_last_hit_tracker.count; j++) {
         const uint16_t tick = g_last_hit_tracker.tick[j];
-        if (tick >= 400) {
+        const uint8_t  idx  = g_last_hit_tracker.index[j];
+        if (tick >= GM_REACTIVE_MS || !is_game_led(idx)) {
             continue;
         }
-        const uint8_t v = (uint8_t)(255 - (tick * 255 / 400));
-        paint(led_min, led_max, g_last_hit_tracker.index[j], v, v, v);
+        const uint8_t v = (uint8_t)(255 - (tick * 255 / GM_REACTIVE_MS));
+        paint(led_min, led_max, idx, v, v, v);
     }
 #endif
 }

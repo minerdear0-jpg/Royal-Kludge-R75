@@ -7,6 +7,7 @@
 #include "defines.h"
 #include "indicator_queue.h"
 #include "game_mode.h"
+#include "lighting_profile.h"
 
 // clang-format off
 /*  LED Matrix ISO
@@ -87,35 +88,16 @@ static void fn_hint(uint8_t led_min, uint8_t led_max, const uint8_t *ids, uint8_
 }
 
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
-    const uint8_t current_layer = get_highest_layer(layer_state);
-
-    if (game_mode_is_active()) {
-        process_indicator_queue(led_min, led_max);
-        game_mode_apply_lighting(led_min, led_max);
-        if (IS_LAYER_ON(_WIN_FN_LYR)) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, 0xFF, 0x00, 0x00);
-        }
-        return true;
-    }
-
-    if (current_layer == _WIN_LYR) {
-        process_indicator_queue(led_min, led_max);
-        return true;
-    }
-
-    if (IS_LAYER_ON(_CTL_LYR) || IS_LAYER_ON(_NUM_LYR)) {
-        for (uint8_t i = led_min; i <= led_max; i++) {
-            RGB_MATRIX_INDICATOR_SET_COLOR(i, 0, 0, 0);
-        }
-    }
+    process_indicator_queue(led_min, led_max);
+    lighting_profile_paint(led_min, led_max);
 
     if (IS_LAYER_ON(_WIN_FN_LYR)) {
         /* Legend only — rest of the board keeps the live RGB effect. */
         const uint8_t media[] = {20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8};
         fn_hint(led_min, led_max, media, 13, 0x00, 0x80, 0x80);
 
-        const uint8_t hue[] = {75, 67, 66}; /* <>  ,  . */
-        fn_hint(led_min, led_max, hue, 3, 0xFF, 0x40, 0xFF);
+        const uint8_t hue[] = {67, 66}; /* ,  . */
+        fn_hint(led_min, led_max, hue, 2, 0xFF, 0x40, 0xFF);
 
         const uint8_t bright[] = {63, 3}; /* up down */
         fn_hint(led_min, led_max, bright, 2, 0xFF, 0xFF, 0xFF);
@@ -130,7 +112,8 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, 0xFF, 0x00, 0x00);
         RGB_MATRIX_INDICATOR_SET_COLOR(64, 0xFF, 0x00, 0x00); /* RShift options */
         RGB_MATRIX_INDICATOR_SET_COLOR(LED_SPACE, 0x7A, 0x00, 0xFF);
-        RGB_MATRIX_INDICATOR_SET_COLOR(22, 0xFF, 0xE0, 0x80); /* ` day/dusk/night */
+        RGB_MATRIX_INDICATOR_SET_COLOR(75, 0xFF, 0xE0, 0x80); /* <> lighting presets */
+        RGB_MATRIX_INDICATOR_SET_COLOR(21, 0xFF, 0x40, 0x00); /* Esc bootloader */
     }
 
     if (IS_LAYER_ON(_CTL_LYR)) {
@@ -150,7 +133,5 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         RGB_MATRIX_INDICATOR_SET_COLOR(20, 0x7A, 0x00, 0xFF);
     }
 
-    process_indicator_queue(led_min, led_max);
-    game_mode_apply_lighting(led_min, led_max);
     return true;
 }

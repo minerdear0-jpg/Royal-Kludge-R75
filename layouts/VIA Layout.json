@@ -89,13 +89,11 @@
   ],
   "matrix": {"rows": 6, "cols": 15},
   "customKeycodes": [
-    {"name": "BT DEV1","title": "BT Device 1","shortName": "DEV1"},
-    {"name": "BT DEV2","title": "BT Device 2","shortName": "DEV2"},
-    {"name": "BT DEV3","title": "BT Device 3","shortName": "DEV3"},
-    {"name": "BT DEV4","title": "BT Device 4","shortName": "DEV4"},
-    {"name": "BT DEV5","title": "BT Device 5","shortName": "DEV5"},
-    {"name": "2.4G","title": "2.4G","shortName": "DEV 2.4G"},
-    {"name": "USB","title": "USB","shortName": "DEV USB"}
+    {"name": "SOCD On", "title": "Enable WASD SOCD last-win", "shortName": "SOCDON"},
+    {"name": "SOCD Off", "title": "Disable WASD SOCD", "shortName": "SOCDOFF"},
+    {"name": "SOCD Toggle", "title": "Toggle WASD SOCD", "shortName": "SOCDTOG"},
+    {"name": "Game Mode", "title": "Toggle Game Mode (also Fn+G)", "shortName": "GAME"},
+    {"name": "Light Cycle", "title": "Cycle white / amber / red", "shortName": "LIGHT"}
   ],
   "layouts": {
       "presets": {"Default": [0,0]},

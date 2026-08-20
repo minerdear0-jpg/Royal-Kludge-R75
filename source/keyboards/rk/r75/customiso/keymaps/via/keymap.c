@@ -66,11 +66,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         ),
 
     [_WIN_FN_LYR] = LAYOUT(
-        _______,  KC_MYCM,  KC_WHOM,  KC_MAIL,  KC_CALC,  KC_MSEL,  KC_MSTP,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,   KC_SCRL,  KC_PAUSE,
-        LIGHT_PROFILE_CYC, _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,  _______,  _______,  KC_PSCR,
+        QK_BOOT,  KC_MYCM,  KC_WHOM,  KC_MAIL,  KC_CALC,  KC_MSEL,  KC_MSTP,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,   KC_SCRL,  KC_PAUSE,
+        _______, _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,  _______,  _______,  KC_PSCR,
         _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RGB_M_P,  RM_PREV,  RM_NEXT,  _______,  KC_INS,
         _______,  _______,  _______,  _______,  _______,  GAME_MODE_TOG,  _______,  _______,  _______,  _______,  _______,  _______,             RM_NEXT,  KC_END,
-        _______,  RM_HUED,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RM_HUED,  RM_HUEU,  _______,   MO(_CTL_LYR), RM_VALU,
+        _______,  LIGHT_PROFILE_CYC,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RM_HUED,  RM_HUEU,  _______,   MO(_CTL_LYR), RM_VALU,
         _______,  _______,  _______,                      TD_KB_CLR,                              _______,  _______,              RM_SPDD, RM_VALD,  RM_SPDU
         ),
 
@@ -117,6 +117,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.pressed) {
         lighting_profile_note_activity();
     }
+    if (!game_mode_process(keycode, record)) {
+        return false;
+    }
+    if (!lighting_profile_process(keycode, record)) {
+        return false;
+    }
     if (!process_socd_cleaner(keycode, record, &socd_v)) {
         return false;
     }
@@ -129,26 +135,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     switch (keycode) {
         case GAME_MODE_TOG:
-            if (record->event.pressed) {
-                const bool enabled = game_mode_toggle();
-                if (enabled) {
-                    indicator_enqueue(GAME_MODE_LED_W, 200, 3, RGB_RED);
-                    indicator_enqueue(GAME_MODE_LED_S, 200, 3, RGB_RED);
-                    indicator_enqueue(GAME_MODE_LED_A, 200, 3, RGB_RED);
-                    indicator_enqueue(GAME_MODE_LED_D, 200, 3, RGB_RED);
-                } else {
-                    indicator_enqueue(GAME_MODE_LED_W, 150, 2, RGB_BLUE);
-                    indicator_enqueue(GAME_MODE_LED_S, 150, 2, RGB_BLUE);
-                    indicator_enqueue(GAME_MODE_LED_A, 150, 2, RGB_BLUE);
-                    indicator_enqueue(GAME_MODE_LED_D, 150, 2, RGB_BLUE);
-                }
-            }
-            return false;
-
         case LIGHT_PROFILE_CYC:
-            if (record->event.pressed) {
-                lighting_profile_cycle();
-            }
             return false;
 
         case QK_MAGIC_TOGGLE_NKRO:

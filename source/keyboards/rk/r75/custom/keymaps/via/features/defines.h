@@ -30,3 +30,17 @@ enum layer_names {
 #define LED_LSFT 75
 #define LED_LCTL 76
 #define LED_LGUI 77
+#define LED_Q 48
+#define LED_E 46
+#define LED_F 54
+#define LED_Z 74
+#define LED_X 73
+#define LED_C 72
+#define LED_V 71
+#define LED_UP 63
+#define LED_RSFT 64
+
+#define GAME_MODE_ROW 3
+#define GAME_MODE_COL 5
+#define LIGHT_CYCLE_ROW 2
+#define LIGHT_CYCLE_COL 13
