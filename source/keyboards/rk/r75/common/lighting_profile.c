@@ -10,7 +10,8 @@
 enum {
     LP_DAY = 0,
     LP_TWILIGHT,
-    LP_NIGHT,
+    LP_GREEN,
+    LP_RED,
     LP_GAMING,
     LP_COUNT
 };
@@ -21,25 +22,27 @@ enum {
 #define BLINK_MS      120
 #define SLEEP_DAY_MS        (10UL * 60UL * 1000UL)
 #define SLEEP_TWILIGHT_MS   (5UL * 60UL * 1000UL)
-#define SLEEP_NIGHT_MS      (10UL * 60UL * 1000UL)
+#define SLEEP_GREEN_MS      (10UL * 60UL * 1000UL)
+#define SLEEP_RED_MS        (10UL * 60UL * 1000UL)
 #define SLEEP_GAMING_MS     (10UL * 60UL * 1000UL)
 #define EEPROM_DEFER_MS     2500
 #define USB_SUSPEND_RGB_MS  10000
 #define DEFAULT_VAL         128
+#define STORE_MARK          0x80000000UL
 
 #define SCALE(c, pct) ((uint8_t)(((uint16_t)(c) * (pct)) / 100))
 
 static const rgb_t k_rgb[LP_COUNT] = {
     {255, 255, 255},
-    {SCALE(255, 50), SCALE(140, 50), SCALE(0, 50)},
-    {SCALE(0, 15), SCALE(95, 15), SCALE(10, 15)},
+    {SCALE(255, 70), SCALE(120, 70), 0},
+    {SCALE(0, 40), SCALE(220, 40), SCALE(40, 40)},
+    {SCALE(255, 40), SCALE(28, 40), 0},
     {SCALE(215, 40), SCALE(255, 40), SCALE(0, 40)},
 };
 
 static uint8_t  profile     = LP_DAY;
 static uint8_t  last_circ   = LP_DAY;
 static uint8_t  vals[LP_COUNT];
-static bool     nl_armed;
 static uint8_t  nl_level;
 static bool     nl_run;
 static bool     nl_usb;
@@ -70,41 +73,56 @@ static uint8_t  courtesy_to   = 255;
 static uint32_t courtesy_at;
 
 static uint8_t pack_val(uint8_t v) {
-    return (uint8_t)(v >> 1);
+    return (uint8_t)(v >> 3);
 }
 
 static uint8_t unpack_val(uint8_t p) {
-    return (uint8_t)(p << 1);
+    return (uint8_t)(p << 3);
 }
 
 static uint32_t pack_store(void) {
-    uint32_t raw = (uint32_t)(profile & 3);
-    if (nl_armed) {
-        raw |= (1UL << 2);
+    uint8_t  i;
+    uint32_t raw = STORE_MARK | (uint32_t)(profile & 7);
+    for (i = 0; i < LP_COUNT; i++) {
+        raw |= ((uint32_t)pack_val(vals[i]) << (3 + (i * 5)));
     }
-    raw |= ((uint32_t)pack_val(vals[0]) << 3);
-    raw |= ((uint32_t)pack_val(vals[1]) << 10);
-    raw |= ((uint32_t)pack_val(vals[2]) << 17);
-    raw |= ((uint32_t)pack_val(vals[3]) << 24);
     return raw;
+}
+
+static void default_vals(void) {
+    uint8_t i;
+    for (i = 0; i < LP_COUNT; i++) {
+        vals[i] = DEFAULT_VAL;
+    }
 }
 
 static void unpack_store(uint32_t raw) {
     uint8_t i;
-    if (raw < LP_COUNT) {
-        profile  = (uint8_t)raw;
-        nl_armed = false;
+    if (raw & STORE_MARK) {
+        profile = (uint8_t)(raw & 7);
+        if (profile >= LP_COUNT) {
+            profile = LP_DAY;
+        }
         for (i = 0; i < LP_COUNT; i++) {
-            vals[i] = DEFAULT_VAL;
+            vals[i] = unpack_val((uint8_t)((raw >> (3 + (i * 5))) & 0x1F));
         }
         return;
     }
-    profile  = (uint8_t)(raw & 3);
-    nl_armed = (raw & (1UL << 2)) != 0;
-    vals[0]  = unpack_val((uint8_t)((raw >> 3) & 0x7F));
-    vals[1]  = unpack_val((uint8_t)((raw >> 10) & 0x7F));
-    vals[2]  = unpack_val((uint8_t)((raw >> 17) & 0x7F));
-    vals[3]  = unpack_val((uint8_t)((raw >> 24) & 0x7F));
+    default_vals();
+    if (raw < 4) {
+        profile = (uint8_t)raw;
+        return;
+    }
+    /* Previous 4-slot pack: day / twilight / night / gaming. */
+    {
+        const uint8_t mapped[4] = {LP_DAY, LP_TWILIGHT, LP_GREEN, LP_GAMING};
+        profile  = mapped[raw & 3];
+        vals[0]  = (uint8_t)(((raw >> 3) & 0x7F) << 1);
+        vals[1]  = (uint8_t)(((raw >> 10) & 0x7F) << 1);
+        vals[2]  = (uint8_t)(((raw >> 17) & 0x7F) << 1);
+        vals[4]  = (uint8_t)(((raw >> 24) & 0x7F) << 1);
+        vals[3]  = DEFAULT_VAL;
+    }
 }
 
 static void apply_val(uint8_t v) {
@@ -112,7 +130,7 @@ static void apply_val(uint8_t v) {
 }
 
 static uint8_t val_slot(void) {
-    return (nl_armed || nl_usb || nl_level == 255) ? LP_NIGHT : profile;
+    return (nl_usb || nl_level == 255) ? LP_GREEN : profile;
 }
 
 static uint8_t scale_chan(uint8_t c) {
@@ -160,8 +178,10 @@ static uint32_t sleep_ms(void) {
     switch (profile) {
         case LP_TWILIGHT:
             return SLEEP_TWILIGHT_MS;
-        case LP_NIGHT:
-            return SLEEP_NIGHT_MS;
+        case LP_GREEN:
+            return SLEEP_GREEN_MS;
+        case LP_RED:
+            return SLEEP_RED_MS;
         case LP_GAMING:
             return SLEEP_GAMING_MS;
         default:
@@ -202,7 +222,7 @@ static void sync_game_features(void) {
 }
 
 static bool in_nightlight(void) {
-    return nl_armed || nl_usb || nl_level != 0 || nl_run || courtesy_lamp;
+    return nl_usb || nl_level != 0 || nl_run || courtesy_lamp;
 }
 
 static void begin_courtesy(uint8_t to, bool lamp) {
@@ -264,20 +284,9 @@ static void begin_nl(uint8_t to, bool usb) {
     snap_courtesy_on();
     rgb_matrix_enable_noeeprom();
     if (to == 255) {
-        apply_val(vals[LP_NIGHT]);
+        apply_val(vals[LP_GREEN]);
     }
     apply_base(shown);
-}
-
-static void lighting_profile_toggle_nightlight(void) {
-    nl_armed = !nl_armed;
-    schedule_eeprom();
-    last_input = timer_read32();
-    if (nl_armed) {
-        begin_nl(255, false);
-    } else if (!usb_down && !nl_usb) {
-        begin_nl(0, false);
-    }
 }
 
 static void begin_switch(uint8_t next) {
@@ -290,26 +299,20 @@ static void begin_switch(uint8_t next) {
         last_circ = next;
     }
     schedule_eeprom();
-    fade_to  = profile_paint_rgb(next);
-    fade_ms  = (prev == LP_GAMING || next == LP_GAMING) ? FADE_GAME_MS : FADE_CIRC_MS;
-    blinking = true;
-    fading   = false;
+    fade_to    = profile_paint_rgb(next);
+    fade_ms    = (prev == LP_GAMING || next == LP_GAMING) ? FADE_GAME_MS : FADE_CIRC_MS;
+    blinking   = true;
+    fading     = false;
     rgb_asleep = false;
-    blink_at = timer_read32();
-    if (!nl_armed && nl_level == 0 && !nl_run) {
-        apply_val(vals[next]);
-    }
+    blink_at   = timer_read32();
+    apply_val(vals[next]);
     apply_base(fade_from);
     sync_game_features();
 }
 
 void eeconfig_init_user(void) {
-    uint8_t i;
-    profile  = LP_DAY;
-    nl_armed = false;
-    for (i = 0; i < LP_COUNT; i++) {
-        vals[i] = DEFAULT_VAL;
-    }
+    profile = LP_DAY;
+    default_vals();
     eeconfig_update_user(pack_store());
 }
 
@@ -322,9 +325,9 @@ void lighting_profile_init(void) {
     fading     = false;
     nl_run     = false;
     nl_usb     = false;
-    nl_level   = nl_armed ? 255 : 0;
+    nl_level   = 0;
     shown      = profile_paint_rgb(profile);
-    apply_val(nl_armed ? vals[LP_NIGHT] : vals[profile]);
+    apply_val(vals[profile]);
     apply_base(shown);
     sync_game_features();
 }
@@ -358,8 +361,8 @@ bool lighting_profile_is_gaming(void) {
 }
 
 void lighting_profile_host_off(void) {
-    /* Linux HID autosuspend fires after ~2s idle. Wait USB_SUSPEND_RGB_MS
-     * then fade into nightlight. A5 / LED_ENABLE_PIN stays high. */
+    /* Linux HID autosuspend ~2s. After USB_SUSPEND_RGB_MS of real host sleep
+     * (VBUS still on) fade to green nightlight. Encoder stays live. */
     if (!usb_down) {
         usb_down    = true;
         usb_down_at = timer_read32();
@@ -379,11 +382,9 @@ void lighting_profile_host_on(void) {
         host_rgb_off = false;
         begin_courtesy(255, false);
     }
-    if (nl_usb || (nl_run && nl_to == 255 && !nl_armed)) {
+    if (nl_usb || nl_level || nl_run) {
         nl_usb = false;
-        if (!nl_armed) {
-            begin_nl(0, false);
-        }
+        begin_nl(0, false);
     }
 }
 
@@ -395,13 +396,13 @@ bool lighting_profile_encoder(bool clockwise) {
     if (!in_nightlight()) {
         return true;
     }
-    uint8_t v = vals[LP_NIGHT];
+    uint8_t v = vals[LP_GREEN];
     if (clockwise) {
         v = (v > (uint8_t)(255 - RGB_MATRIX_VAL_STEP)) ? 255 : (uint8_t)(v + RGB_MATRIX_VAL_STEP);
     } else {
         v = (v < RGB_MATRIX_VAL_STEP) ? 0 : (uint8_t)(v - RGB_MATRIX_VAL_STEP);
     }
-    vals[LP_NIGHT] = v;
+    vals[LP_GREEN] = v;
     apply_val(v);
     schedule_eeprom();
     last_input = timer_read32();
@@ -412,15 +413,6 @@ bool lighting_profile_process(uint16_t keycode, keyrecord_t *record) {
     if (keycode == KC_MUTE && in_nightlight()) {
         if (record->event.pressed) {
             lamp_click();
-        }
-        return false;
-    }
-    const bool nl = (keycode == LIGHT_NIGHTLIGHT) ||
-                    (IS_LAYER_ON(_WIN_FN_LYR) && record->event.key.row == NIGHTLIGHT_ROW &&
-                     record->event.key.col == NIGHTLIGHT_COL);
-    if (nl) {
-        if (record->event.pressed) {
-            lighting_profile_toggle_nightlight();
         }
         return false;
     }
@@ -513,9 +505,6 @@ void lighting_profile_task(void) {
                 }
             } else {
                 courtesy_host = false;
-                if (!courtesy_lamp) {
-                    courtesy_lamp = false;
-                }
                 sync_game_features();
             }
         } else {
@@ -524,7 +513,7 @@ void lighting_profile_task(void) {
         return;
     }
 
-    if (!nl_armed && nl_level == 0 && !courtesy_lamp && !rgb_asleep && !host_rgb_off &&
+    if (!nl_usb && nl_level == 0 && !courtesy_lamp && !rgb_asleep && !host_rgb_off &&
         timer_elapsed32(last_input) >= sleep_ms()) {
         begin_courtesy(0, false);
     }
@@ -536,7 +525,7 @@ void lighting_profile_paint(uint8_t led_min, uint8_t led_max) {
     }
     if (nl_level) {
         const rgb_t base = (blinking || fading) ? shown : profile_paint_rgb(profile);
-        fill_range(led_min, led_max, lerp_rgb(base, k_rgb[LP_NIGHT], nl_level, 255));
+        fill_range(led_min, led_max, lerp_rgb(base, k_rgb[LP_GREEN], nl_level, 255));
         return;
     }
     if (blinking) {

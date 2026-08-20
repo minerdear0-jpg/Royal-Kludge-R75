@@ -5,6 +5,5 @@ enum user_keycodes {
     SOCDOFF,
     SOCDTOG,
     GAME_MODE_TOG,
-    LIGHT_PROFILE_CYC,
-    LIGHT_NIGHTLIGHT
+    LIGHT_PROFILE_CYC
 };
