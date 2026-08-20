@@ -9,7 +9,6 @@
 #include "features/indicator_queue.h"
 #include "features/tap_hold.h"
 #include "features/indicators.h"
-#include "features/rgb_keys.h"
 #include "features/socd_cleaner.h"
 #include "features/game_mode.h"
 #include "features/lighting_profile.h"
@@ -75,10 +74,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_WIN_FN_LYR] = LAYOUT(
         QK_BOOT,  KC_MYCM,  KC_WHOM,  KC_MAIL,  KC_CALC,  KC_MSEL,  KC_MSTP,  KC_MPRV,  KC_MPLY,  KC_MNXT,  KC_MUTE,  KC_VOLD,  KC_VOLU,   KC_SCRL,  KC_PAUSE,
         _______, _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   _______,  _______,  _______,  _______,  KC_PSCR,
-        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RGB_M_P,  RM_PREV,  RM_NEXT,  LIGHT_PROFILE_CYC,  KC_INS,
+        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  LIGHT_PROFILE_CYC,  KC_INS,
         _______,  _______,  _______,  _______,  _______,  GAME_MODE_TOG,  _______,  _______,  _______,  _______,  _______,  _______,             _______,  KC_END,
-        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  RM_HUED,  RM_HUEU,  _______,   MO(_CTL_LYR),              RM_VALU,
-        _______,  _______,  _______,                      TD_KB_CLR,                              _______,  _______,              RM_SPDD, RM_VALD,  RM_SPDU
+        _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,  _______,   MO(_CTL_LYR),              RM_VALU,
+        _______,  _______,  _______,                      TD_KB_CLR,                              _______,  _______,              _______, RM_VALD,  _______
         ),
 
     [_CTL_LYR] = LAYOUT(
@@ -134,9 +133,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         return false;
     }
     if (!process_socd_cleaner(keycode, record, &socd_h)) {
-        return false;
-    }
-    if (!process_rgb_keys(keycode, record)) {
         return false;
     }
 
