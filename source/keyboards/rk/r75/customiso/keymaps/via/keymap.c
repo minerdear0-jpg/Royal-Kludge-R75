@@ -29,13 +29,20 @@ void suspend_wakeup_init_user(void) {
 
 void housekeeping_task_user(void) {
     lighting_profile_task();
-    /* Hardware LEDs are active-low. Mac = macOS modifier layer only.
-     * Win-lock = GUI/Super blocked (Game Mode). Fn/numpad must not steal these. */
-    const bool mac_led = IS_LAYER_ON(_MAC_LYR);
+    const bool mac_led      = IS_LAYER_ON(_MAC_LYR);
     const bool win_lock_led = keymap_config.no_gui;
-
-    gpio_write_pin(LED_MAC_PIN, !mac_led);
-    gpio_write_pin(LED_WIN_LOCK_PIN, !win_lock_led);
+    static bool last_mac;
+    static bool last_win;
+    static bool gpio_inited;
+    if (!gpio_inited || mac_led != last_mac) {
+        gpio_write_pin(LED_MAC_PIN, !mac_led);
+        last_mac = mac_led;
+    }
+    if (!gpio_inited || win_lock_led != last_win) {
+        gpio_write_pin(LED_WIN_LOCK_PIN, !win_lock_led);
+        last_win = win_lock_led;
+    }
+    gpio_inited = true;
 }
 
 socd_cleaner_t socd_v = {{KC_W, KC_S}, SOCD_CLEANER_LAST};

@@ -88,10 +88,10 @@ void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
         rgb_matrix_set_color(i, 0, 0, 0);
     }
 
-    paint_list(led_min, led_max, gm_move, (uint8_t)(sizeof(gm_move) / sizeof(gm_move[0])), GM_MOVE_R, GM_MOVE_G, GM_MOVE_B);
-    paint_list(led_min, led_max, gm_nums, (uint8_t)(sizeof(gm_nums) / sizeof(gm_nums[0])), GM_NUM_R, GM_NUM_G, GM_NUM_B);
-    paint_list(led_min, led_max, gm_mods, (uint8_t)(sizeof(gm_mods) / sizeof(gm_mods[0])), GM_MOD_R, GM_MOD_G, GM_MOD_B);
-    paint_list(led_min, led_max, gm_tactic, (uint8_t)(sizeof(gm_tactic) / sizeof(gm_tactic[0])), GM_TAC_R, GM_TAC_G, GM_TAC_B);
+    paint_list(led_min, led_max, gm_move, (uint8_t)(sizeof(gm_move) / sizeof(gm_move[0])), lighting_profile_scale_u8(GM_MOVE_R), lighting_profile_scale_u8(GM_MOVE_G), lighting_profile_scale_u8(GM_MOVE_B));
+    paint_list(led_min, led_max, gm_nums, (uint8_t)(sizeof(gm_nums) / sizeof(gm_nums[0])), lighting_profile_scale_u8(GM_NUM_R), lighting_profile_scale_u8(GM_NUM_G), lighting_profile_scale_u8(GM_NUM_B));
+    paint_list(led_min, led_max, gm_mods, (uint8_t)(sizeof(gm_mods) / sizeof(gm_mods[0])), lighting_profile_scale_u8(GM_MOD_R), lighting_profile_scale_u8(GM_MOD_G), lighting_profile_scale_u8(GM_MOD_B));
+    paint_list(led_min, led_max, gm_tactic, (uint8_t)(sizeof(gm_tactic) / sizeof(gm_tactic[0])), lighting_profile_scale_u8(GM_TAC_R), lighting_profile_scale_u8(GM_TAC_G), lighting_profile_scale_u8(GM_TAC_B));
 
 #ifdef RGB_MATRIX_KEYREACTIVE_ENABLED
     for (uint8_t j = 0; j < g_last_hit_tracker.count; j++) {
@@ -100,7 +100,7 @@ void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
         if (tick >= GM_REACTIVE_MS || !is_game_led(idx)) {
             continue;
         }
-        const uint8_t v = (uint8_t)(255 - (tick * 255 / GM_REACTIVE_MS));
+        const uint8_t v = lighting_profile_scale_u8((uint8_t)(255 - (tick * 255 / GM_REACTIVE_MS)));
         paint(led_min, led_max, idx, v, v, v);
     }
 #endif

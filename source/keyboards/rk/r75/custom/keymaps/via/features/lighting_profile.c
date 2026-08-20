@@ -45,6 +45,22 @@ static rgb_t    fade_from   = {255, 255, 255};
 static rgb_t    fade_to     = {255, 255, 255};
 static rgb_t    shown       = {255, 255, 255};
 
+static rgb_t with_val(rgb_t c) {
+    const uint8_t v = rgb_matrix_get_val();
+    rgb_t         o;
+    o.r = (uint8_t)((uint16_t)c.r * v / 255);
+    o.g = (uint8_t)((uint16_t)c.g * v / 255);
+    o.b = (uint8_t)((uint16_t)c.b * v / 255);
+    return o;
+}
+
+static void fill_range(uint8_t led_min, uint8_t led_max, rgb_t c) {
+    const rgb_t s = with_val(c);
+    for (uint8_t i = led_min; i < led_max; i++) {
+        rgb_matrix_set_color(i, s.r, s.g, s.b);
+    }
+}
+
 static uint8_t lerp8(uint8_t a, uint8_t b, uint16_t t, uint16_t max) {
     if (max == 0) {
         return b;
@@ -87,8 +103,9 @@ static void write_eeprom(void) {
 static void apply_base(rgb_t rgb) {
     shown = rgb;
     rgb_matrix_enable_noeeprom();
-    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
-    rgb_matrix_set_color_all(rgb.r, rgb.g, rgb.b);
+    if (rgb_matrix_get_mode() != RGB_MATRIX_NONE) {
+        rgb_matrix_mode_noeeprom(RGB_MATRIX_NONE);
+    }
 }
 
 static void sync_game_features(void) {
@@ -109,9 +126,7 @@ static void begin_switch(uint8_t next) {
     fading   = false;
     rgb_asleep = false;
     blink_at = timer_read32();
-    rgb_matrix_enable_noeeprom();
-    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
-    rgb_matrix_set_color_all(k_rgb[next].r, k_rgb[next].g, k_rgb[next].b);
+    apply_base(fade_from);
     sync_game_features();
 }
 
@@ -198,7 +213,6 @@ void lighting_profile_task(void) {
             sync_game_features();
         } else {
             shown = lerp_rgb(fade_from, fade_to, (uint16_t)elapsed, fade_ms);
-            rgb_matrix_set_color_all(shown.r, shown.g, shown.b);
         }
         return;
     }
@@ -215,22 +229,20 @@ void lighting_profile_paint(uint8_t led_min, uint8_t led_max) {
         return;
     }
     if (blinking) {
-        for (uint8_t i = led_min; i < led_max; i++) {
-            rgb_matrix_set_color(i, k_rgb[profile].r, k_rgb[profile].g, k_rgb[profile].b);
-        }
+        fill_range(led_min, led_max, k_rgb[profile]);
         return;
     }
     if (fading) {
-        for (uint8_t i = led_min; i < led_max; i++) {
-            rgb_matrix_set_color(i, shown.r, shown.g, shown.b);
-        }
+        fill_range(led_min, led_max, shown);
         return;
     }
     if (profile == LP_GAMING) {
         game_mode_apply_lighting(led_min, led_max);
         return;
     }
-    for (uint8_t i = led_min; i < led_max; i++) {
-        rgb_matrix_set_color(i, k_rgb[profile].r, k_rgb[profile].g, k_rgb[profile].b);
-    }
+    fill_range(led_min, led_max, k_rgb[profile]);
+}
+
+uint8_t lighting_profile_scale_u8(uint8_t c) {
+    return (uint8_t)((uint16_t)c * rgb_matrix_get_val() / 255);
 }
