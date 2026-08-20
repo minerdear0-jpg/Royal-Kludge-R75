@@ -17,22 +17,36 @@ rgb_led_t get_complementary_color(rgb_led_t rgb_led, bool darken) {
     return (rgb_led_t){.r = new_r, .g = new_g, .b = new_b};
 }
 
-void indicator_enqueue(uint8_t led_index, uint32_t interval, uint8_t times_to_flash, uint8_t r, uint8_t g, uint8_t b) {
+static void fill_slot(uint8_t i, uint8_t led_index, uint32_t interval, uint8_t times_to_flash, uint8_t r, uint8_t g, uint8_t b) {
+    indicator_queue[i].active         = true;
+    indicator_queue[i].led_index      = led_index;
+    indicator_queue[i].last_update    = timer_read32();
+    indicator_queue[i].interval       = interval;
+    indicator_queue[i].times_to_flash = times_to_flash * 2;
+    indicator_queue[i].r              = r;
+    indicator_queue[i].g              = g;
+    indicator_queue[i].b              = b;
+}
+
+bool indicator_enqueue(uint8_t led_index, uint32_t interval, uint8_t times_to_flash, uint8_t r, uint8_t g, uint8_t b) {
     for (uint8_t i = 0; i < INDICATOR_QUEUE_MAX; i++) {
         if (!indicator_queue[i].active) {
-            // this queue position is not active, so we can use it
-            indicator_queue[i].active         = true;
-            indicator_queue[i].led_index      = led_index;
-            indicator_queue[i].last_update    = timer_read32();
-            indicator_queue[i].interval       = interval;
-            indicator_queue[i].times_to_flash = times_to_flash * 2;
-            indicator_queue[i].r              = r;
-            indicator_queue[i].g              = g;
-            indicator_queue[i].b              = b;
+            fill_slot(i, led_index, interval, times_to_flash, r, g, b);
             indicator_live++;
-            break;
+            return true;
         }
     }
+    uint8_t  oldest = 0;
+    uint32_t age    = 0;
+    for (uint8_t i = 0; i < INDICATOR_QUEUE_MAX; i++) {
+        const uint32_t e = timer_elapsed32(indicator_queue[i].last_update);
+        if (e >= age) {
+            age     = e;
+            oldest  = i;
+        }
+    }
+    fill_slot(oldest, led_index, interval, times_to_flash, r, g, b);
+    return true;
 }
 
 void process_indicator_queue(uint8_t led_min, uint8_t led_max) {
