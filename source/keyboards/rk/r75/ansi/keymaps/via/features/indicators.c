@@ -89,9 +89,12 @@ static void fn_hint(uint8_t led_min, uint8_t led_max, const uint8_t *ids, uint8_
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     const uint8_t current_layer = get_highest_layer(layer_state);
 
-    if (game_mode_is_active() && current_layer == _WIN_LYR) {
+    if (game_mode_is_active()) {
         process_indicator_queue(led_min, led_max);
         game_mode_apply_lighting(led_min, led_max);
+        if (IS_LAYER_ON(_WIN_FN_LYR)) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(LED_G, 0xFF, 0x00, 0x00);
+        }
         return true;
     }
 

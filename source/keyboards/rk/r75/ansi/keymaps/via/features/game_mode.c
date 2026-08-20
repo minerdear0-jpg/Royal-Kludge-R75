@@ -87,16 +87,18 @@ void game_mode_apply_lighting(uint8_t led_min, uint8_t led_max) {
     const uint8_t slots[] = {23, 24, 25, 26, 27};
     paint_list(led_min, led_max, slots, 5, 0xA0, 0x00, 0xFF);
 
+    paint(led_min, led_max, 28, 0x00, 0xC8, 0xC8); /* 6 */
+
     const uint8_t mods[] = {LED_LSFT, LED_LCTL, LED_LGUI, LED_LALT, LED_SPACE, 64};
     paint_list(led_min, led_max, mods, 6, 0x00, 0xC8, 0xC8);
 
 #ifdef RGB_MATRIX_KEYREACTIVE_ENABLED
     for (uint8_t j = 0; j < g_last_hit_tracker.count; j++) {
         const uint16_t tick = g_last_hit_tracker.tick[j];
-        if (tick >= 150) {
+        if (tick >= 400) {
             continue;
         }
-        const uint8_t v = (uint8_t)(255 - (tick * 255 / 150));
+        const uint8_t v = (uint8_t)(255 - (tick * 255 / 400));
         paint(led_min, led_max, g_last_hit_tracker.index[j], v, v, v);
     }
 #endif

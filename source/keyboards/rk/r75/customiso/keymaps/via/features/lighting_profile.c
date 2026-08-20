@@ -22,18 +22,18 @@ static const hsv_t k_hsv[3] = {
     {0, 255, NIGHTLIGHT_V},
 };
 
-static uint8_t  profile         = LP_DAY;
-static uint32_t session_start   = 0;
-static uint32_t pause_accum     = 0;
-static uint32_t game_mark       = 0;
-static uint32_t last_input      = 0;
-static bool     frozen          = false;
-static bool     rgb_asleep      = false;
-static bool     host_off        = false;
-static bool     fading          = false;
-static uint32_t fade_start      = 0;
-static hsv_t    fade_from       = {0, 0, 255};
-static hsv_t    fade_to         = {0, 0, 255};
+static uint8_t  profile            = LP_DAY;
+static uint32_t session_start      = 0;
+static uint32_t pause_accum        = 0;
+static uint32_t game_mark          = 0;
+static uint32_t last_input         = 0;
+static bool     frozen             = false;
+static bool     rgb_asleep         = false;
+static bool     nightlight         = false;
+static bool     fading             = false;
+static uint32_t fade_start         = 0;
+static hsv_t    fade_from          = {0, 0, 255};
+static hsv_t    fade_to            = {0, 0, 255};
 
 static uint8_t lerp8(uint8_t a, uint8_t b, uint8_t t) {
     return (uint8_t)(((uint16_t)a * (255 - t) + (uint16_t)b * t) / 255);
@@ -54,24 +54,27 @@ static void write_eeprom(void) {
 }
 
 static void apply_hsv(hsv_t hsv) {
+    rgb_matrix_enable_noeeprom();
     rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
     rgb_matrix_sethsv_noeeprom(hsv.h, hsv.s, hsv.v);
 }
 
 static void start_fade(uint8_t next) {
     profile    = next;
-    write_eeprom();
     fade_from  = rgb_matrix_get_hsv();
     fade_to    = k_hsv[next];
     fade_start = timer_read32();
     fading     = true;
     rgb_asleep = false;
-    rgb_matrix_enable_noeeprom();
     apply_hsv(fade_from);
 }
 
 static uint32_t session_ms(void) {
-    return timer_elapsed32(session_start) - pause_accum;
+    const uint32_t elapsed = timer_elapsed32(session_start);
+    if (elapsed < pause_accum) {
+        return 0;
+    }
+    return elapsed - pause_accum;
 }
 
 static uint32_t sleep_timeout_ms(void) {
@@ -97,30 +100,31 @@ void lighting_profile_init(void) {
     last_input         = timer_read32();
     frozen             = false;
     rgb_asleep         = false;
-    host_off           = false;
+    nightlight         = false;
     fading             = false;
     apply_hsv(k_hsv[profile]);
 }
 
 void lighting_profile_note_activity(void) {
     last_input = timer_read32();
-    if (rgb_asleep && !game_mode_is_active() && !host_off) {
+    if (rgb_asleep && !game_mode_is_active()) {
         rgb_asleep = false;
-        rgb_matrix_enable_noeeprom();
         apply_hsv(k_hsv[profile]);
     }
 }
 
 void lighting_profile_cycle(void) {
     start_fade((uint8_t)((profile + 1) % 3));
+    write_eeprom();
     lighting_profile_note_activity();
 }
 
 void lighting_profile_game_enter(void) {
-    frozen     = true;
-    game_mark  = timer_read32();
-    fading     = false;
-    rgb_asleep = false;
+    frozen      = true;
+    game_mark   = timer_read32();
+    fading      = false;
+    rgb_asleep  = false;
+    nightlight  = false;
     rgb_matrix_enable_noeeprom();
 }
 
@@ -142,31 +146,36 @@ bool lighting_profile_user_selected(void) {
 }
 
 void lighting_profile_host_off(void) {
-    host_off   = true;
+    if (game_mode_is_active()) {
+        return;
+    }
+    /* Linux USB autosuspend hits after ~2s idle. Only nightlight after the
+     * same idle window as RGB sleep, so a pause while typing is not "PC off". */
+    if (timer_elapsed32(last_input) < sleep_timeout_ms()) {
+        return;
+    }
+    nightlight = true;
     fading     = false;
     rgb_asleep = false;
-    rgb_matrix_enable_noeeprom();
     apply_hsv(k_hsv[LP_NIGHT]);
     rgb_matrix_set_color_all(NIGHTLIGHT_V, 0, 0);
     rgb_matrix_update_pwm_buffers();
 }
 
 void lighting_profile_host_on(void) {
-    host_off      = false;
+    last_input = timer_read32();
+    if (!nightlight) {
+        return;
+    }
+    nightlight    = false;
     session_start = timer_read32();
     pause_accum   = 0;
     frozen        = false;
-    last_input    = timer_read32();
     start_fade(profile);
 }
 
 void lighting_profile_task(void) {
-    if (host_off) {
-        apply_hsv(k_hsv[LP_NIGHT]);
-        return;
-    }
-
-    if (game_mode_is_active()) {
+    if (nightlight || game_mode_is_active()) {
         return;
     }
 
