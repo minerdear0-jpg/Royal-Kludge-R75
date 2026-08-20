@@ -44,4 +44,6 @@ enum layer_names {
 #define GAME_MODE_ROW 3
 #define GAME_MODE_COL 5
 #define LIGHT_CYCLE_ROW 2
-#define LIGHT_CYCLE_COL 13
+#define LIGHT_CYCLE_COL 12
+#define NIGHTLIGHT_ROW 2
+#define NIGHTLIGHT_COL 13
