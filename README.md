@@ -94,7 +94,7 @@ USB suspend (ПК спит / выключен, VBUS есть): через **10 �
 
 Светодиод **Mac** — только слой Mac. Светодиод **Win-lock** — только когда заблокирован Super (обычно Game Mode).
 
-USB 1000 Гц (`polling_interval` 1 мс), debounce 5 мс.
+USB 1000 Гц (`polling_interval` 1 мс), debounce **8 мс**, тип `sym_defer_pk` — стабильное состояние до press/release, против двойных символов.
 
 **Вход в DFU не завязан на VIA:** Bootmagic — матрица Esc при подключении кабеля. **Fn+Esc** — `QK_BOOT` из прошивки. Reset на днище — железный загрузчик.
 
